@@ -4,7 +4,6 @@ ClipDiff is a tiny macOS menu bar utility for comparing the last two copied text
 
 ## Run It
 
-Build and open a local release app:
 
 ```sh
 scripts/create-local-release.sh
@@ -17,14 +16,14 @@ The app is copied to `releases/ClipDiff.app` and opened.
 1. Copy the older text.
 2. Copy the newer text.
 3. Press `Option-Command-D`, or choose **Show Diff** from the menu bar item.
-4. Read the diff in a native window.
+4. View the diff in a native window.
 
 ## Design
 
-- The app watches `NSPasteboard.general.changeCount`.
+- The app monitors the pasteboard through [`NSPasteboard`](https://developer.apple.com/documentation/appkit/nspasteboard), using `changeCount` to detect updates.
 - Only plain text clipboard values are captured.
 - Duplicate consecutive values are ignored.
-- Non-text clipboard changes are ignored.
+- Non-text clipboard values are ignored.
 - Captured text is kept in memory only.
 - The diff view is internal SwiftUI UI, not Terminal output.
 
