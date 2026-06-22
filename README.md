@@ -1,70 +1,30 @@
-# ClipboardDiff for Mac — notes
+# ClipDiff
 
-## Tiny macOS menu bar app, based on the existing Windows/Ditto ClipboardDiff.
+ClipDiff is a tiny macOS menu bar utility for comparing the last two copied text values.
 
-> In macOS 26 Tahoe, Mac clipboard history is built into Spotlight, the universal search box. Launch it like this:
+## Workflow
 
+1. Copy the older text.
+2. Copy the newer text.
+3. Press `Option-Command-D`, or choose **Show Diff** from the menu bar item.
+4. Read the diff in a native window.
 
-> Hit Command-Space (⌘␣) on the keyboard, then Command-4 (⌘4). You can do this in one quick move — keep your finger on the Command key, then hit Space and 4 in sequence. 
-> Click the Spotlight icon in the upper right corner of the menu bar, then click the Clipboard icon on the right of the Spotlight bar.
+## Design
 
-TODO: Get screenshots of that
+- The app watches `NSPasteboard.general.changeCount`.
+- Only plain text clipboard values are captured.
+- Duplicate consecutive values are ignored.
+- Non-text clipboard changes are ignored.
+- Captured text is kept in memory only.
+- The diff view is internal SwiftUI UI, not Terminal output.
 
+## Diff View
 
-> The first time you open Spotlight clipboard history, it’ll ask you if you want to turn on the feature. If you say yes, it will store your 
-history from that point onward.
+The default view is side-by-side:
 
-### Core workflow:
+- previous clipboard text on the left
+- current clipboard text on the right
+- changed and removed lines tinted red
+- changed and added lines tinted green
 
-1. Select text in old document
-2. Copy
-3. Select text in new document
-4. Copy
-5. Press global shortcut
-6. See diff between previous clipboard text and current clipboard text
-
-The app only cares about the last two meaningful text clipboard values:
-
-```
-previousText
-currentText
-```
-
-### Basic behaviour:
-
-- Run as menu bar app
-- Watch `NSPasteboard.general.changeCount`
-- When clipboard changes, read text/plain content
-- Ignore duplicates
-- Store previous + current text
-- On shortcut/menu click, write both values to temp files
-- Launch configured diff tool
-
-### MVP:
-
-- Clipboard monitor
-- Menu bar icon
-- Global shortcut, e.g. `⌥⌘D`
-- Diff previous vs current copied text (external diff tool support)
-
-Diff tool approach:
-
-Default macOS option:
-
-`opendiff "{old}" "{new}"`
-
-Other possible commands:
-
-```
-code --diff "{old}" "{new}"
-diffmerge "{old}" "{new}"
-```
-
-Known diff tools:
-
-- FileMerge / opendiff
-- VS Code
-- DiffMerge/Mac
-- Kaleidoscope
-- Beyond Compare
-
+There is also a unified view for copying or scanning a compact diff.
