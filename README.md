@@ -2,6 +2,16 @@
 
 ClipDiff is a tiny macOS menu bar utility for comparing the last two copied text values.
 
+## Run It
+
+Build and open a local release app:
+
+```sh
+scripts/create-local-release.sh
+```
+
+The app is copied to `releases/ClipDiff.app` and opened.
+
 ## Workflow
 
 1. Copy the older text.
