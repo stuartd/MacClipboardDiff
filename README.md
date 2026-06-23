@@ -37,3 +37,11 @@ The default view is side-by-side:
 - changed and added lines tinted green
 
 There is also a unified view for copying or scanning a compact diff.
+
+## Tests
+
+The core clipboard-history and diff behavior is covered by SwiftPM XCTest tests:
+
+```sh
+swift test
+```

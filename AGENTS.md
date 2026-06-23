@@ -10,6 +10,8 @@ Keep it small. This is not an App Store product, not a cloud service, and not a 
 
 - `clipdiff/clipdiffApp.swift`: SwiftUI app entry point and menu bar extra.
 - `clipdiff/ClipDiffController.swift`: clipboard polling, in-memory capture state, diff creation, hotkey action, and window coordination.
+- `clipdiff/ClipboardHistory.swift`: in-memory clipboard capture policy and testable history behavior.
+- `clipdiff/ClipboardTextStore.swift`: fakeable pasteboard text access protocol plus the `NSPasteboard` implementation.
 - `clipdiff/MenuContentView.swift`: menu bar popover content and commands.
 - `clipdiff/HotKeyController.swift`: Carbon global hotkey registration for `Option-Command-D`.
 - `clipdiff/DiffEngine.swift`: text splitting, diff row generation, summaries, and copyable unified diff output.
@@ -17,6 +19,8 @@ Keep it small. This is not an App Store product, not a cloud service, and not a 
 - `clipdiff/DiffWindowController.swift`: AppKit window wrapper for the SwiftUI diff view.
 - `clipdiff/DiffWindowView.swift`: side-by-side and unified diff UI.
 - `clipdiff/Assets.xcassets/`: app icon and accent color assets.
+- `Package.swift`: SwiftPM manifest used for focused core tests.
+- `clipdiffTests/`: XCTest coverage for clipboard history and diff behavior.
 - `scripts/create-local-release.sh`: builds and opens a local Release app at `releases/ClipDiff.app`.
 - `scripts/_common.sh`: shared script constants.
 
@@ -46,13 +50,22 @@ Select the `clipdiff` scheme, choose **My Mac**, and press `Cmd-R`.
 - Keep the main surface as a menu bar extra plus one diff window. Avoid settings screens, onboarding, accounts, sync, or background services unless explicitly requested.
 - Keep `ClipDiffController` on the main actor. It touches pasteboard state, timers, window state, and SwiftUI-observed properties.
 - Keep diff logic in `DiffEngine` and models in `ClipboardModels.swift`; do not bury diff behavior inside SwiftUI views.
+- Keep clipboard capture behavior in `ClipboardHistory` and pasteboard access behind `ClipboardTextStore` so tests can use fakes.
 - Keep views simple and inspectable. Side-by-side and unified modes should remain native SwiftUI views, not Terminal output or web content.
 - Be careful with the global shortcut. If `Option-Command-D` cannot be registered, the menu command should still work.
 - Do not add dependencies for this app unless there is a strong reason. The current implementation is intentionally dependency-free.
 
 ## Testing And Verification
 
-There is currently no test target. For non-trivial logic changes, prefer adding a focused test target for `DiffEngine` and pure model behavior rather than testing AppKit, pasteboard, or global hotkeys directly.
+Run the SwiftPM XCTest suite for core clipboard-history and diff behavior:
+
+```bash
+swift test
+```
+
+Use fakes for clipboard behavior in unit tests. Do not test `NSPasteboard.general`, AppKit windows, timers, or Carbon global hotkeys directly unless you are deliberately adding a small integration test.
+
+For non-trivial logic changes, add focused tests around `ClipboardHistory`, `DiffEngine`, and pure model behavior.
 
 Manual smoke test after changes:
 

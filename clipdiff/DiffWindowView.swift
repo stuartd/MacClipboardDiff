@@ -75,49 +75,50 @@ private struct DiffHeaderView: View {
 private struct SideBySideDiffView: View {
     let document: DiffDocument
 
-    private var columnWidth: CGFloat {
-        let estimated = CGFloat(document.maxVisibleLineLength) * 7.2 + 24
-        return min(max(460, estimated), 1400)
-    }
-
     var body: some View {
-        ScrollView([.horizontal, .vertical]) {
-            VStack(alignment: .leading, spacing: 0) {
-                SideBySideHeader(columnWidth: columnWidth)
+        GeometryReader { proxy in
+            let sideWidth = max(320, (proxy.size.width - 1) / 2)
 
-                ForEach(document.rows) { row in
-                    SideBySideRow(row: row, columnWidth: columnWidth)
+            ScrollView(.vertical) {
+                VStack(alignment: .leading, spacing: 0) {
+                    SideBySideHeader(sideWidth: sideWidth)
+
+                    ForEach(document.rows) { row in
+                        SideBySideRow(row: row, sideWidth: sideWidth)
+                    }
                 }
+                .frame(width: max(proxy.size.width, (sideWidth * 2) + 1), alignment: .leading)
+                .textSelection(.enabled)
             }
-            .textSelection(.enabled)
+            .background(Color(nsColor: .textBackgroundColor))
         }
-        .background(Color(nsColor: .textBackgroundColor))
     }
 }
 
 private struct SideBySideHeader: View {
-    let columnWidth: CGFloat
+    let sideWidth: CGFloat
 
     var body: some View {
         HStack(spacing: 0) {
-            headerCell("Previous", columnWidth: columnWidth)
+            headerCell("Previous")
             Divider()
-            headerCell("Current", columnWidth: columnWidth)
+            headerCell("Current")
         }
         .frame(height: 28)
         .background(Color(nsColor: .controlBackgroundColor))
     }
 
-    private func headerCell(_ title: String, columnWidth: CGFloat) -> some View {
+    private func headerCell(_ title: String) -> some View {
         HStack(spacing: 0) {
             Text("#")
                 .frame(width: 52, alignment: .trailing)
                 .padding(.trailing, 8)
 
             Text(title)
-                .frame(width: columnWidth, alignment: .leading)
+                .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.horizontal, 8)
         }
+        .frame(width: sideWidth, alignment: .leading)
         .font(.caption.weight(.semibold))
         .foregroundStyle(.secondary)
     }
@@ -125,23 +126,28 @@ private struct SideBySideHeader: View {
 
 private struct SideBySideRow: View {
     let row: DiffRow
-    let columnWidth: CGFloat
+    let sideWidth: CGFloat
 
     var body: some View {
         HStack(alignment: .top, spacing: 0) {
             side(
                 lineNumber: row.oldLineNumber,
-                text: row.oldText,
-                background: oldBackground
+                text: row.oldText
             )
 
             Divider()
 
             side(
                 lineNumber: row.newLineNumber,
-                text: row.newText,
-                background: newBackground
+                text: row.newText
             )
+        }
+        .background(alignment: .leading) {
+            HStack(spacing: 0) {
+                oldBackground.frame(width: sideWidth)
+                Color.clear.frame(width: 1)
+                newBackground.frame(width: sideWidth)
+            }
         }
         .overlay(alignment: .bottom) {
             Rectangle()
@@ -150,7 +156,7 @@ private struct SideBySideRow: View {
         }
     }
 
-    private func side(lineNumber: Int?, text: String?, background: Color) -> some View {
+    private func side(lineNumber: Int?, text: String?) -> some View {
         HStack(alignment: .top, spacing: 0) {
             Text(lineNumber.map(String.init) ?? "")
                 .foregroundStyle(.tertiary)
@@ -160,14 +166,15 @@ private struct SideBySideRow: View {
             Text((text ?? "").displayTabs)
                 .foregroundStyle(text == nil ? .clear : .primary)
                 .font(.system(size: 12, weight: .regular, design: .monospaced))
-                .lineLimit(1)
-                .frame(width: columnWidth, alignment: .leading)
-                .clipped()
+                .lineLimit(nil)
+                .multilineTextAlignment(.leading)
+                .fixedSize(horizontal: false, vertical: true)
+                .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.horizontal, 8)
         }
+        .frame(width: sideWidth, alignment: .leading)
         .font(.system(size: 11, weight: .regular, design: .monospaced))
         .padding(.vertical, 3)
-        .background(background)
     }
 
     private var oldBackground: Color {
@@ -197,38 +204,44 @@ private struct UnifiedDiffView: View {
     let document: DiffDocument
 
     var body: some View {
-        ScrollView([.horizontal, .vertical]) {
-            VStack(alignment: .leading, spacing: 0) {
-                unifiedLine("--- Previous clipboard", background: Color(nsColor: .controlBackgroundColor))
-                unifiedLine("+++ Current clipboard", background: Color(nsColor: .controlBackgroundColor))
+        GeometryReader { proxy in
+            let contentWidth = max(320, proxy.size.width)
 
-                ForEach(document.rows) { row in
-                    switch row.kind {
-                    case .equal:
-                        unifiedLine("  \(row.oldText ?? "")", background: .clear)
-                    case .removed:
-                        unifiedLine("- \(row.oldText ?? "")", background: Color.red.opacity(0.13))
-                    case .inserted:
-                        unifiedLine("+ \(row.newText ?? "")", background: Color.green.opacity(0.13))
-                    case .changed:
-                        unifiedLine("- \(row.oldText ?? "")", background: Color.red.opacity(0.13))
-                        unifiedLine("+ \(row.newText ?? "")", background: Color.green.opacity(0.13))
+            ScrollView(.vertical) {
+                VStack(alignment: .leading, spacing: 0) {
+                    unifiedLine("--- Previous clipboard", background: Color(nsColor: .controlBackgroundColor))
+                    unifiedLine("+++ Current clipboard", background: Color(nsColor: .controlBackgroundColor))
+
+                    ForEach(document.rows) { row in
+                        switch row.kind {
+                        case .equal:
+                            unifiedLine("  \(row.oldText ?? "")", background: .clear)
+                        case .removed:
+                            unifiedLine("- \(row.oldText ?? "")", background: Color.red.opacity(0.13))
+                        case .inserted:
+                            unifiedLine("+ \(row.newText ?? "")", background: Color.green.opacity(0.13))
+                        case .changed:
+                            unifiedLine("- \(row.oldText ?? "")", background: Color.red.opacity(0.13))
+                            unifiedLine("+ \(row.newText ?? "")", background: Color.green.opacity(0.13))
+                        }
                     }
                 }
+                .frame(width: contentWidth, alignment: .leading)
+                .textSelection(.enabled)
             }
-            .textSelection(.enabled)
+            .background(Color(nsColor: .textBackgroundColor))
         }
-        .background(Color(nsColor: .textBackgroundColor))
     }
 
     private func unifiedLine(_ text: String, background: Color) -> some View {
         Text(text.displayTabs)
             .font(.system(size: 12, weight: .regular, design: .monospaced))
-            .lineLimit(1)
+            .lineLimit(nil)
+            .multilineTextAlignment(.leading)
+            .fixedSize(horizontal: false, vertical: true)
             .padding(.horizontal, 10)
             .padding(.vertical, 3)
-            .frame(minWidth: 900, maxWidth: .infinity, alignment: .leading)
-            .clipped()
+            .frame(maxWidth: .infinity, alignment: .leading)
             .background(background)
     }
 }

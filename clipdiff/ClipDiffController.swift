@@ -4,26 +4,22 @@ import Foundation
 
 @MainActor
 final class ClipDiffController: ObservableObject {
-    @Published private(set) var entries: [ClipboardEntry] = []
     @Published private(set) var activeDiff: DiffDocument?
     @Published private(set) var lastError: String?
     @Published var viewMode: DiffViewMode = .sideBySide
-    @Published var isMonitoring = true {
-        didSet {
-            if isMonitoring {
-                lastChangeCount = NSPasteboard.general.changeCount
-                lastError = nil
-            }
-        }
-    }
 
-    private let maxEntries = 2
-    private var lastChangeCount = NSPasteboard.general.changeCount
+    private let history: ClipboardHistory
     private var timer: Timer?
     private var diffWindowController: DiffWindowController?
     private var hotKeyController: HotKeyController?
 
-    init() {
+    convenience init() {
+        self.init(history: ClipboardHistory(clipboard: SystemClipboardTextStore()))
+    }
+
+    init(history: ClipboardHistory) {
+        self.history = history
+
         startMonitoring()
         hotKeyController = HotKeyController { [weak self] in
             Task { @MainActor in
@@ -40,31 +36,34 @@ final class ClipDiffController: ObservableObject {
         timer?.invalidate()
     }
 
+    var entries: [ClipboardEntry] {
+        history.entries
+    }
+
     var currentEntry: ClipboardEntry? {
-        entries.first
+        history.currentEntry
     }
 
     var previousEntry: ClipboardEntry? {
-        entries.dropFirst().first
+        history.previousEntry
     }
 
     var canDiff: Bool {
-        previousEntry != nil && currentEntry != nil
+        history.canDiff
+    }
+
+    var isMonitoring: Bool {
+        get {
+            history.isMonitoring
+        }
+        set {
+            objectWillChange.send()
+            history.isMonitoring = newValue
+        }
     }
 
     var statusText: String {
-        if !isMonitoring {
-            return "Monitoring paused"
-        }
-
-        switch entries.count {
-        case 0:
-            return "Waiting for copied text"
-        case 1:
-            return "Copy one more text value"
-        default:
-            return "Ready to diff"
-        }
+        history.statusText
     }
 
     func showDiff() {
@@ -84,7 +83,8 @@ final class ClipDiffController: ObservableObject {
     }
 
     func clearCapturedText() {
-        entries.removeAll()
+        objectWillChange.send()
+        history.clearCapturedText()
         activeDiff = nil
         lastError = nil
     }
@@ -95,9 +95,7 @@ final class ClipDiffController: ObservableObject {
             return
         }
 
-        NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(DiffEngine.copyableDiff(for: activeDiff), forType: .string)
-        lastChangeCount = NSPasteboard.general.changeCount
+        history.replaceClipboard(with: DiffEngine.copyableDiff(for: activeDiff))
     }
 
     private func startMonitoring() {
@@ -114,28 +112,9 @@ final class ClipDiffController: ObservableObject {
     }
 
     private func readPasteboardIfNeeded() {
-        guard isMonitoring else { return }
-
-        let pasteboard = NSPasteboard.general
-        guard pasteboard.changeCount != lastChangeCount else { return }
-
-        lastChangeCount = pasteboard.changeCount
-
-        guard pasteboard.availableType(from: [.string]) != nil,
-              let copiedText = pasteboard.string(forType: .string),
-              !copiedText.isEmpty else {
-            return
+        if history.readClipboardIfNeeded() {
+            objectWillChange.send()
+            lastError = nil
         }
-
-        guard copiedText != currentEntry?.text else { return }
-
-        let entry = ClipboardEntry(text: copiedText, capturedAt: Date())
-        entries.insert(entry, at: 0)
-
-        if entries.count > maxEntries {
-            entries.removeLast(entries.count - maxEntries)
-        }
-
-        lastError = nil
     }
 }

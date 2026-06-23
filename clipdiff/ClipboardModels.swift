@@ -32,7 +32,7 @@ struct ClipboardEntry: Identifiable, Equatable {
     }
 }
 
-enum DiffKind {
+enum DiffKind: Equatable {
     case equal
     case inserted
     case removed
@@ -63,15 +63,19 @@ struct DiffSummary {
 
         var parts: [String] = []
         if changed > 0 {
-            parts.append("\(changed) changed")
+            parts.append(lineLabel(count: changed, action: "changed"))
         }
         if inserted > 0 {
-            parts.append("\(inserted) added")
+            parts.append(lineLabel(count: inserted, action: "added"))
         }
         if removed > 0 {
-            parts.append("\(removed) removed")
+            parts.append(lineLabel(count: removed, action: "removed"))
         }
         return parts.joined(separator: ", ")
+    }
+
+    private func lineLabel(count: Int, action: String) -> String {
+        "\(count) \(action) \(count == 1 ? "line" : "lines")"
     }
 }
 
