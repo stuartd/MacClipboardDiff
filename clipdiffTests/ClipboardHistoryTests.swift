@@ -2,7 +2,7 @@ import XCTest
 @testable import ClipDiffCore
 
 final class ClipboardHistoryTests: XCTestCase {
-    func testCapturesLastTwoUniqueTextValues() {
+    func testCapturesLastTwoTextValues() {
         let clipboard = FakeClipboardTextStore()
         let history = ClipboardHistory(clipboard: clipboard)
 
@@ -18,7 +18,7 @@ final class ClipboardHistoryTests: XCTestCase {
         XCTAssertEqual(history.statusText, "Ready to diff")
     }
 
-    func testIgnoresDuplicateConsecutiveText() {
+    func testCapturesIdenticalConsecutiveCopiesAsComparisonPair() {
         let clipboard = FakeClipboardTextStore()
         let history = ClipboardHistory(clipboard: clipboard)
 
@@ -26,10 +26,19 @@ final class ClipboardHistoryTests: XCTestCase {
         XCTAssertTrue(history.readClipboardIfNeeded())
 
         clipboard.copy("same text")
-        XCTAssertFalse(history.readClipboardIfNeeded())
+        XCTAssertTrue(history.readClipboardIfNeeded())
 
-        XCTAssertEqual(history.entries.map(\.text), ["same text"])
-        XCTAssertFalse(history.canDiff)
+        XCTAssertEqual(history.entries.map(\.text), ["same text", "same text"])
+        XCTAssertTrue(history.canDiff)
+        XCTAssertEqual(history.statusText, "Ready to diff")
+
+        let document = DiffEngine.makeDocument(
+            previous: history.previousEntry!,
+            current: history.currentEntry!
+        )
+
+        XCTAssertFalse(document.summary.hasDifferences)
+        XCTAssertEqual(document.summary.label, "No differences")
     }
 
     func testIgnoresEmptyAndNonTextClipboardChangesWithoutClearingHistory() {

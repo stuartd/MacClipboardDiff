@@ -46,7 +46,7 @@ Select the `clipdiff` scheme, choose **My Mac**, and press `Cmd-R`.
 
 - Keep the app native: Swift, SwiftUI, AppKit, Carbon hotkeys, Foundation, and `NSPasteboard`.
 - Preserve the in-memory privacy model. Captured clipboard text should not be written to disk, uploaded, logged, indexed, or retained after quitting.
-- Capture plain text only. Continue ignoring duplicate consecutive text and non-text clipboard changes.
+- Capture plain text only. Treat separate copy events as separate entries even when their text is identical, and continue ignoring non-text clipboard changes.
 - Keep the main surface as a menu bar extra plus one diff window. Avoid settings screens, onboarding, accounts, sync, or background services unless explicitly requested.
 - Keep `ClipDiffController` on the main actor. It touches pasteboard state, timers, window state, and SwiftUI-observed properties.
 - Keep diff logic in `DiffEngine` and models in `ClipboardModels.swift`; do not bury diff behavior inside SwiftUI views.
@@ -71,7 +71,7 @@ Manual smoke test after changes:
 
 1. Run `scripts/create-local-release.sh`.
 2. Copy one plain-text value.
-3. Copy a different plain-text value.
+3. Copy another plain-text value, which may be identical when verifying that there are no changes.
 4. Press `Option-Command-D`, or choose **Show Diff** from the menu bar item.
 5. Check side-by-side and unified views.
 6. Use **Copy diff** and confirm the clipboard receives unified diff text.

@@ -22,7 +22,7 @@ The app is copied to `releases/ClipDiff.app` and opened.
 
 - The app monitors the pasteboard through [`NSPasteboard`](https://developer.apple.com/documentation/appkit/nspasteboard), using `changeCount` to detect updates.
 - Only plain text clipboard values are captured.
-- Duplicate consecutive values are ignored.
+- Separate copy events are captured even when their text is identical, allowing a no-differences result.
 - Non-text clipboard values are ignored.
 - Captured text is kept in memory only.
 - The diff view is internal SwiftUI UI, not Terminal output.

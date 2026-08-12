@@ -61,8 +61,6 @@ final class ClipboardHistory {
             return false
         }
 
-        guard copiedText != currentEntry?.text else { return false }
-
         let entry = ClipboardEntry(text: copiedText, capturedAt: Date())
         entries.insert(entry, at: 0)
 

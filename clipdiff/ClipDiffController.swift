@@ -68,7 +68,7 @@ final class ClipDiffController: ObservableObject {
 
     func showDiff() {
         guard let previousEntry, let currentEntry else {
-            lastError = "Copy two different text values first."
+            lastError = "Copy two text values first."
             NSSound.beep()
             return
         }
