@@ -14,13 +14,12 @@ struct MenuContentView: View {
 
             Divider()
 
-            Button {
-                controller.showDiff()
-            } label: {
-                Label("Show Diff", systemImage: "square.split.2x1")
+            if controller.isGlobalShortcutAvailable {
+                showDiffButton(title: "Show Diff")
+                    .keyboardShortcut("d", modifiers: [.command, .option])
+            } else {
+                showDiffButton(title: "Show Diff (shortcut unavailable)")
             }
-            .disabled(!controller.canDiff)
-            .keyboardShortcut("d", modifiers: [.command, .option])
 
             Toggle(isOn: $controller.isMonitoring) {
                 Label("Monitor Clipboard", systemImage: "dot.radiowaves.left.and.right")
@@ -34,6 +33,12 @@ struct MenuContentView: View {
             .disabled(controller.entries.isEmpty)
 
             Divider()
+
+            Button {
+                controller.showAbout()
+            } label: {
+                Label("About ClipDiff", systemImage: "info.circle")
+            }
 
             Button {
                 NSApplication.shared.terminate(nil)
@@ -51,21 +56,23 @@ struct MenuContentView: View {
             Image(systemName: controller.canDiff ? "checkmark.circle.fill" : "clock")
                 .foregroundStyle(controller.canDiff ? .green : .secondary)
 
-            VStack(alignment: .leading, spacing: 2) {
-                Text(controller.statusText)
-                    .font(.headline)
-
-                Text("Shortcut: Option-Command-D")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
+            Text(controller.statusText)
+                .font(.headline)
         }
     }
 
     private var clipboardPreview: some View {
         VStack(alignment: .leading, spacing: 8) {
-            EntryPreviewView(title: "Current", entry: controller.currentEntry)
-            EntryPreviewView(title: "Previous", entry: controller.previousEntry)
+            EntryPreviewView(
+                title: "Current",
+                entry: controller.currentEntry,
+                fileLabel: controller.fileLabels.current
+            )
+            EntryPreviewView(
+                title: "Previous",
+                entry: controller.previousEntry,
+                fileLabel: controller.fileLabels.previous
+            )
 
             if let lastError = controller.lastError {
                 Text(lastError)
@@ -75,11 +82,21 @@ struct MenuContentView: View {
             }
         }
     }
+
+    private func showDiffButton(title: String) -> some View {
+        Button {
+            controller.showDiff()
+        } label: {
+            Label(title, systemImage: "square.split.2x1")
+        }
+        .disabled(!controller.canDiff)
+    }
 }
 
 private struct EntryPreviewView: View {
     let title: String
     let entry: ClipboardEntry?
+    let fileLabel: String?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 3) {
@@ -88,7 +105,7 @@ private struct EntryPreviewView: View {
                 .foregroundStyle(.secondary)
 
             if let entry {
-                Text(entry.preview)
+                Text(entry.displayPreview(fileLabel: fileLabel))
                     .font(.caption)
                     .lineLimit(2)
                     .frame(maxWidth: .infinity, alignment: .leading)

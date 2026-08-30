@@ -15,18 +15,22 @@ let package = Package(
             name: "ClipDiffCore",
             path: "clipdiff",
             exclude: [
+                "AppAbout.swift",
                 "Assets.xcassets",
                 "clipdiffApp.swift",
                 "ClipDiffController.swift",
+                "ClipboardStore.swift",
                 "DiffWindowController.swift",
                 "DiffWindowView.swift",
                 "HotKeyController.swift",
                 "MenuContentView.swift"
             ],
             sources: [
+                "AppVersionFormatter.swift",
                 "ClipboardHistory.swift",
                 "ClipboardModels.swift",
-                "ClipboardTextStore.swift",
+                "ClipboardObservation.swift",
+                "CopiedFileTextReader.swift",
                 "DiffEngine.swift"
             ]
         ),

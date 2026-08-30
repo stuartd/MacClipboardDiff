@@ -80,8 +80,12 @@ private struct SideBySideDiffView: View {
             let sideWidth = max(320, (proxy.size.width - 1) / 2)
 
             ScrollView(.vertical) {
-                VStack(alignment: .leading, spacing: 0) {
-                    SideBySideHeader(sideWidth: sideWidth)
+                LazyVStack(alignment: .leading, spacing: 0) {
+                    SideBySideHeader(
+                        previousLabel: document.labels.previous,
+                        currentLabel: document.labels.current,
+                        sideWidth: sideWidth
+                    )
 
                     ForEach(document.rows) { row in
                         SideBySideRow(row: row, sideWidth: sideWidth)
@@ -96,13 +100,15 @@ private struct SideBySideDiffView: View {
 }
 
 private struct SideBySideHeader: View {
+    let previousLabel: String
+    let currentLabel: String
     let sideWidth: CGFloat
 
     var body: some View {
         HStack(spacing: 0) {
-            headerCell("Previous")
+            headerCell(previousLabel)
             Divider()
-            headerCell("Current")
+            headerCell(currentLabel)
         }
         .frame(height: 28)
         .background(Color(nsColor: .controlBackgroundColor))
@@ -208,9 +214,15 @@ private struct UnifiedDiffView: View {
             let contentWidth = max(320, proxy.size.width)
 
             ScrollView(.vertical) {
-                VStack(alignment: .leading, spacing: 0) {
-                    unifiedLine("--- Previous clipboard", background: Color(nsColor: .controlBackgroundColor))
-                    unifiedLine("+++ Current clipboard", background: Color(nsColor: .controlBackgroundColor))
+                LazyVStack(alignment: .leading, spacing: 0) {
+                    unifiedLine(
+                        "--- \(document.labels.previous)",
+                        background: Color(nsColor: .controlBackgroundColor)
+                    )
+                    unifiedLine(
+                        "+++ \(document.labels.current)",
+                        background: Color(nsColor: .controlBackgroundColor)
+                    )
 
                     ForEach(document.rows) { row in
                         switch row.kind {

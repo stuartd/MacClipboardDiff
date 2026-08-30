@@ -1,26 +1,21 @@
 import Foundation
 
 final class ClipboardHistory {
+    static let defaultRecentClearWindow: TimeInterval = 60
+
     private(set) var entries: [ClipboardEntry] = []
-    private(set) var lastError: String?
+    private(set) var isMonitoring = true
+    private(set) var lastChangeCount: Int
 
-    private let clipboard: ClipboardTextStore
-    private let maxEntries: Int
-    private var lastChangeCount: Int
+    private let recentClearWindow: TimeInterval
+    private var clearEligibility: ClearEligibility?
 
-    var isMonitoring = true {
-        didSet {
-            if isMonitoring {
-                lastChangeCount = clipboard.changeCount
-                lastError = nil
-            }
-        }
-    }
-
-    init(clipboard: ClipboardTextStore, maxEntries: Int = 2) {
-        self.clipboard = clipboard
-        self.maxEntries = max(2, maxEntries)
-        lastChangeCount = clipboard.changeCount
+    init(
+        startupChangeCount: Int = 0,
+        recentClearWindow: TimeInterval = ClipboardHistory.defaultRecentClearWindow
+    ) {
+        lastChangeCount = startupChangeCount
+        self.recentClearWindow = recentClearWindow
     }
 
     var currentEntry: ClipboardEntry? {
@@ -51,34 +46,102 @@ final class ClipboardHistory {
     }
 
     @discardableResult
-    func readClipboardIfNeeded() -> Bool {
-        guard isMonitoring else { return false }
-        guard clipboard.changeCount != lastChangeCount else { return false }
+    func apply(_ observation: ClipboardObservation) -> ClipboardHistoryChange {
+        guard isMonitoring else { return .none }
+        guard observation.changeCount != lastChangeCount else { return .none }
 
-        lastChangeCount = clipboard.changeCount
+        lastChangeCount = observation.changeCount
 
-        guard let copiedText = clipboard.text, !copiedText.isEmpty else {
-            return false
+        switch observation.content {
+        case .value(let value):
+            guard !value.text.isEmpty else {
+                return applyExplicitClear(observedAt: observation.observedAt)
+            }
+            return insert(value, capturedAt: observation.observedAt)
+
+        case .pair(let previousValue, let currentValue):
+            guard !previousValue.text.isEmpty, !currentValue.text.isEmpty else {
+                clearEligibility = nil
+                return .none
+            }
+
+            let previous = makeEntry(from: previousValue, capturedAt: observation.observedAt)
+            let current = makeEntry(from: currentValue, capturedAt: observation.observedAt)
+            entries = [current, previous]
+            clearEligibility = ClearEligibility(
+                entryID: current.id,
+                observedAt: observation.observedAt
+            )
+            return .accepted
+
+        case .explicitClear:
+            return applyExplicitClear(observedAt: observation.observedAt)
+
+        case .nonText, .ownWrite:
+            clearEligibility = nil
+            return .none
         }
+    }
 
-        let entry = ClipboardEntry(text: copiedText, capturedAt: Date())
-        entries.insert(entry, at: 0)
+    func pause() {
+        isMonitoring = false
+        clearEligibility = nil
+    }
 
-        if entries.count > maxEntries {
-            entries.removeLast(entries.count - maxEntries)
-        }
-
-        lastError = nil
-        return true
+    func resume(currentChangeCount: Int) {
+        isMonitoring = true
+        lastChangeCount = currentChangeCount
+        clearEligibility = nil
     }
 
     func clearCapturedText() {
         entries.removeAll()
-        lastError = nil
+        clearEligibility = nil
     }
 
-    func replaceClipboard(with text: String) {
-        clipboard.replaceText(text)
-        lastChangeCount = clipboard.changeCount
+    private func insert(
+        _ value: CapturedClipboardValue,
+        capturedAt: Date
+    ) -> ClipboardHistoryChange {
+        let entry = makeEntry(from: value, capturedAt: capturedAt)
+        entries.insert(entry, at: 0)
+
+        if entries.count > 2 {
+            entries.removeLast(entries.count - 2)
+        }
+
+        clearEligibility = ClearEligibility(entryID: entry.id, observedAt: capturedAt)
+        return .accepted
     }
+
+    private func makeEntry(
+        from value: CapturedClipboardValue,
+        capturedAt: Date
+    ) -> ClipboardEntry {
+        ClipboardEntry(
+            text: value.text,
+            capturedAt: capturedAt,
+            sourceFileName: value.sourceFileName,
+            sourceFilePath: value.sourceFilePath
+        )
+    }
+
+    private func applyExplicitClear(observedAt: Date) -> ClipboardHistoryChange {
+        guard let eligibility = clearEligibility,
+              currentEntry?.id == eligibility.entryID,
+              observedAt >= eligibility.observedAt,
+              observedAt.timeIntervalSince(eligibility.observedAt) <= recentClearWindow else {
+            clearEligibility = nil
+            return .none
+        }
+
+        entries.removeFirst()
+        clearEligibility = nil
+        return .removedByRecentClear
+    }
+}
+
+private struct ClearEligibility {
+    let entryID: UUID
+    let observedAt: Date
 }

@@ -64,6 +64,83 @@ final class DiffEngineTests: XCTestCase {
         XCTAssertEqual(summary.label, "1 changed line, 15 added lines, 2 removed lines")
     }
 
+    func testTrailingNewlineDifferenceIsPreserved() {
+        let document = DiffEngine.makeDocument(previous: entry("a"), current: entry("a\n"))
+
+        XCTAssertEqual(document.rows.map(\.kind), [.equal, .inserted])
+        XCTAssertEqual(document.rows.last?.newText, "")
+    }
+
+    func testBlankLineChangeIsComparedAtLineLevel() {
+        let document = DiffEngine.makeDocument(
+            previous: entry("one\n\nthree"),
+            current: entry("one\ntwo\nthree")
+        )
+
+        XCTAssertEqual(document.rows.map(\.kind), [.equal, .changed, .equal])
+    }
+
+    func testRepeatedIdenticalLinesProduceStableResult() {
+        let first = DiffEngine.makeDocument(
+            previous: entry("same\nold\nsame"),
+            current: entry("same\nsame")
+        )
+        let second = DiffEngine.makeDocument(
+            previous: entry("same\nold\nsame"),
+            current: entry("same\nsame")
+        )
+
+        XCTAssertEqual(first.rows.map(\.kind), second.rows.map(\.kind))
+        XCTAssertEqual(first.summary.removed, 1)
+        XCTAssertEqual(first.summary.unchanged, 2)
+    }
+
+    func testTabsAndUnicodeArePreservedInUnifiedOutput() {
+        let document = DiffEngine.makeDocument(
+            previous: entry("\told café"),
+            current: entry("\tnew 日本語")
+        )
+
+        XCTAssertEqual(
+            DiffEngine.copyableDiff(for: document),
+            "--- Previous clipboard\n+++ Current clipboard\n- \told café\n+ \tnew 日本語"
+        )
+    }
+
+    func testFileNamesAppearInLabelsAndFullPathsAreDroppedFromDocument() {
+        let previous = ClipboardEntry(
+            text: "old",
+            capturedAt: Date(timeIntervalSince1970: 0),
+            sourceFileName: "settings.json",
+            sourceFilePath: "/worktrees/branch-a/Sources/settings.json"
+        )
+        let current = ClipboardEntry(
+            text: "new",
+            capturedAt: Date(timeIntervalSince1970: 0),
+            sourceFileName: "settings.json",
+            sourceFilePath: "/worktrees/branch-b/Sources/settings.json"
+        )
+
+        let document = DiffEngine.makeDocument(previous: previous, current: current)
+        let output = DiffEngine.copyableDiff(for: document)
+
+        XCTAssertEqual(
+            document.labels,
+            DiffSideLabels(
+                previous: "Previous clipboard — branch-a/Sources/settings.json",
+                current: "Current clipboard — branch-b/Sources/settings.json"
+            )
+        )
+        XCTAssertTrue(output.hasPrefix(
+            "--- Previous clipboard — branch-a/Sources/settings.json\n" +
+            "+++ Current clipboard — branch-b/Sources/settings.json\n"
+        ))
+        XCTAssertNil(document.previous.sourceFilePath)
+        XCTAssertNil(document.current.sourceFilePath)
+        XCTAssertNotNil(previous.sourceFilePath)
+        XCTAssertNotNil(current.sourceFilePath)
+    }
+
     private func entry(_ text: String) -> ClipboardEntry {
         ClipboardEntry(text: text, capturedAt: Date(timeIntervalSince1970: 0))
     }

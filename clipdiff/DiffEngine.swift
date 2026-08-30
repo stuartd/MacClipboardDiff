@@ -5,20 +5,22 @@ enum DiffEngine {
         let oldLines = TextLines.split(previous.text)
         let newLines = TextLines.split(current.text)
         let rows = makeRows(oldLines: oldLines, newLines: newLines)
+        let labels = makeLabels(previous: previous, current: current)
 
         return DiffDocument(
-            previous: previous,
-            current: current,
+            previous: entryWithoutSourcePath(previous),
+            current: entryWithoutSourcePath(current),
             rows: rows,
             summary: summarize(rows),
-            createdAt: Date()
+            createdAt: Date(),
+            labels: labels
         )
     }
 
     static func copyableDiff(for document: DiffDocument) -> String {
         var lines: [String] = [
-            "--- Previous clipboard",
-            "+++ Current clipboard"
+            "--- \(document.labels.previous)",
+            "+++ \(document.labels.current)"
         ]
 
         for row in document.rows {
@@ -36,6 +38,34 @@ enum DiffEngine {
         }
 
         return lines.joined(separator: "\n")
+    }
+
+    private static func makeLabels(
+        previous: ClipboardEntry,
+        current: ClipboardEntry
+    ) -> DiffSideLabels {
+        let fileLabels = ClipboardEntryDisplay.resolveFileLabels(
+            previous: previous,
+            current: current
+        )
+        return DiffSideLabels(
+            previous: sideLabel(defaultLabel: "Previous clipboard", fileLabel: fileLabels.previous),
+            current: sideLabel(defaultLabel: "Current clipboard", fileLabel: fileLabels.current)
+        )
+    }
+
+    private static func sideLabel(defaultLabel: String, fileLabel: String?) -> String {
+        guard let fileLabel, !fileLabel.isEmpty else { return defaultLabel }
+        return "\(defaultLabel) — \(fileLabel)"
+    }
+
+    private static func entryWithoutSourcePath(_ entry: ClipboardEntry) -> ClipboardEntry {
+        ClipboardEntry(
+            id: entry.id,
+            text: entry.text,
+            capturedAt: entry.capturedAt,
+            sourceFileName: entry.sourceFileName
+        )
     }
 
     private static func makeRows(oldLines: [String], newLines: [String]) -> [DiffRow] {

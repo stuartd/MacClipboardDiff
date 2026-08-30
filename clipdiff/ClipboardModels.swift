@@ -1,9 +1,25 @@
 import Foundation
 
 struct ClipboardEntry: Identifiable, Equatable {
-    let id = UUID()
+    let id: UUID
     let text: String
     let capturedAt: Date
+    let sourceFileName: String?
+    let sourceFilePath: String?
+
+    init(
+        id: UUID = UUID(),
+        text: String,
+        capturedAt: Date,
+        sourceFileName: String? = nil,
+        sourceFilePath: String? = nil
+    ) {
+        self.id = id
+        self.text = text
+        self.capturedAt = capturedAt
+        self.sourceFileName = sourceFileName
+        self.sourceFilePath = sourceFilePath
+    }
 
     var lineCount: Int {
         TextLines.split(text).count
@@ -29,6 +45,78 @@ struct ClipboardEntry: Identifiable, Equatable {
 
         let endIndex = collapsed.index(collapsed.startIndex, offsetBy: 120)
         return String(collapsed[..<endIndex]) + "..."
+    }
+
+    func displayPreview(fileLabel: String? = nil) -> String {
+        let label = fileLabel ?? sourceFileName
+        guard let label, !label.isEmpty else { return preview }
+        return "\(label) — \(preview)"
+    }
+}
+
+struct ClipboardFileLabels: Equatable {
+    let previous: String?
+    let current: String?
+}
+
+enum ClipboardEntryDisplay {
+    static func resolveFileLabels(
+        previous: ClipboardEntry?,
+        current: ClipboardEntry?
+    ) -> ClipboardFileLabels {
+        let previousLabel = usableFileName(previous)
+        let currentLabel = usableFileName(current)
+
+        guard let previousLabel,
+              let currentLabel,
+              previousLabel == currentLabel,
+              let previousPath = usableFilePath(previous),
+              let currentPath = usableFilePath(current),
+              previousPath != currentPath else {
+            return ClipboardFileLabels(previous: previousLabel, current: currentLabel)
+        }
+
+        let previousSegments = pathSegments(previousPath)
+        let currentSegments = pathSegments(currentPath)
+        let maximumDepth = max(previousSegments.count, currentSegments.count)
+
+        guard maximumDepth >= 2 else {
+            return ClipboardFileLabels(previous: previousLabel, current: currentLabel)
+        }
+
+        for depth in 2...maximumDepth {
+            let previousSuffix = suffix(previousSegments, depth: depth)
+            let currentSuffix = suffix(currentSegments, depth: depth)
+            if previousSuffix != currentSuffix {
+                return ClipboardFileLabels(previous: previousSuffix, current: currentSuffix)
+            }
+        }
+
+        return ClipboardFileLabels(previous: previousLabel, current: currentLabel)
+    }
+
+    private static func usableFileName(_ entry: ClipboardEntry?) -> String? {
+        guard let name = entry?.sourceFileName,
+              !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            return nil
+        }
+        return name
+    }
+
+    private static func usableFilePath(_ entry: ClipboardEntry?) -> String? {
+        guard let path = entry?.sourceFilePath,
+              !path.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            return nil
+        }
+        return path
+    }
+
+    private static func pathSegments(_ path: String) -> [Substring] {
+        path.split(separator: "/", omittingEmptySubsequences: true)
+    }
+
+    private static func suffix(_ segments: [Substring], depth: Int) -> String {
+        segments.suffix(depth).joined(separator: "/")
     }
 }
 
@@ -79,6 +167,11 @@ struct DiffSummary {
     }
 }
 
+struct DiffSideLabels: Equatable {
+    let previous: String
+    let current: String
+}
+
 struct DiffDocument: Identifiable {
     let id = UUID()
     let previous: ClipboardEntry
@@ -86,12 +179,7 @@ struct DiffDocument: Identifiable {
     let rows: [DiffRow]
     let summary: DiffSummary
     let createdAt: Date
-
-    var maxVisibleLineLength: Int {
-        rows.reduce(0) { maxLength, row in
-            max(maxLength, row.oldText?.count ?? 0, row.newText?.count ?? 0)
-        }
-    }
+    let labels: DiffSideLabels
 }
 
 enum DiffViewMode: String, CaseIterable, Identifiable {
