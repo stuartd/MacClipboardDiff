@@ -1,6 +1,6 @@
-# ClipDiff
+# MacClipboardDiff
 
-ClipDiff is a tiny macOS menu bar utility for comparing the last two copied text values or text files.
+MacClipboardDiff is a tiny macOS menu bar utility for comparing the last two copied text values or text files.
 
 ## Run It
 
@@ -8,7 +8,7 @@ ClipDiff is a tiny macOS menu bar utility for comparing the last two copied text
 scripts/create-local-release.sh
 ```
 
-The app is copied to `releases/ClipDiff.app` and opened.
+The app is copied to `releases/MacClipboardDiff.app` and opened.
 
 ## Workflow
 
@@ -17,13 +17,13 @@ The app is copied to `releases/ClipDiff.app` and opened.
 3. Press `Option-Command-D`, or choose **Show Diff** from the menu bar item.
 4. View the diff in a native window.
 
-You can also copy exactly two files together in Finder. ClipDiff immediately treats the first file as **Previous** and the second as **Current**.
+You can also copy exactly two files together in Finder. MacClipboardDiff immediately treats the first file as **Previous** and the second as **Current**.
 
 ## Copied Files
 
 Finder file URLs take precedence over incidental path text on the pasteboard. A single copied file becomes one capture; exactly two copied files atomically replace the comparison pair; copies containing more than two files are ignored.
 
-For a usable text file, ClipDiff reads and retains the complete decoded contents in memory. It supports UTF-8, BOM-marked UTF-16 and UTF-32, common BOM-less UTF-16, and Windows-1252. Files larger than 16 MiB are not read.
+For a usable text file, MacClipboardDiff reads and retains the complete decoded contents in memory. It supports UTF-8, BOM-marked UTF-16 and UTF-32, common BOM-less UTF-16, and Windows-1252. Files larger than 16 MiB are not read.
 
 An unusable file contributes its filename followed by a reason:
 
@@ -34,7 +34,7 @@ An unusable file contributes its filename followed by a reason:
 - `(file unreadable)`
 - `(file too large)`
 
-The source filename is shown in menu previews, side-by-side headings, and unified diff headers. When both files have the same basename, ClipDiff adds only enough parent directories to distinguish them, such as `branch-a/Sources/settings.json` and `branch-b/Sources/settings.json`.
+The source filename is shown in menu previews, side-by-side headings, and unified diff headers. When both files have the same basename, MacClipboardDiff adds only enough parent directories to distinguish them, such as `branch-a/Sources/settings.json` and `branch-b/Sources/settings.json`.
 
 The full standardized file path is retained only with the corresponding in-memory history entry. A generated diff keeps its resolved display label but drops the full path. File contents and paths are never logged, uploaded, indexed, or persisted.
 
@@ -62,9 +62,9 @@ There is also a unified view for copying or scanning a compact diff. Diff rows a
 
 ## Privacy Limitations
 
-The recent-clear behavior is only a heuristic. An unmarked secret is otherwise indistinguishable from ordinary text, and Swift strings cannot be guaranteed to be securely zeroed. Operating-system paging, process dumps, other clipboard monitors, and macOS clipboard behavior are outside ClipDiff's control.
+The recent-clear behavior is only a heuristic. An unmarked secret is otherwise indistinguishable from ordinary text, and Swift strings cannot be guaranteed to be securely zeroed. Operating-system paging, process dumps, other clipboard monitors, and macOS clipboard behavior are outside MacClipboardDiff's control.
 
-ClipDiff intentionally has no external-viewer integration because that would require writing captured values to temporary plaintext files.
+MacClipboardDiff intentionally has no external-viewer integration because that would require writing captured values to temporary plaintext files.
 
 ## Tests
 
