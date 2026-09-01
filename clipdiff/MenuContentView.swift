@@ -21,6 +21,8 @@ struct MenuContentView: View {
                 showDiffButton(title: "Show Diff (shortcut unavailable)")
             }
 
+            diffViewerMenu
+
             Toggle(isOn: $controller.isMonitoring) {
                 Label("Monitor Clipboard", systemImage: "dot.radiowaves.left.and.right")
             }
@@ -90,6 +92,53 @@ struct MenuContentView: View {
             Label(title, systemImage: "square.split.2x1")
         }
         .disabled(!controller.canDiff)
+    }
+
+    private var diffViewerMenu: some View {
+        Menu {
+            Button {
+                controller.selectExternalDiffTool(nil)
+            } label: {
+                viewerChoiceLabel(
+                    "Built-in viewer",
+                    isSelected: controller.selectedExternalDiffTool == nil
+                )
+            }
+
+            if !controller.externalDiffTools.isEmpty {
+                Divider()
+
+                ForEach(controller.externalDiffTools) { choice in
+                    Button {
+                        controller.selectExternalDiffTool(choice)
+                    } label: {
+                        viewerChoiceLabel(
+                            choice.displayName,
+                            isSelected: controller.selectedExternalDiffTool?.id == choice.id
+                        )
+                    }
+                }
+            }
+
+            Divider()
+
+            Button {
+                controller.chooseExternalDiffTool()
+            } label: {
+                Label("Choose Application…", systemImage: "folder")
+            }
+        } label: {
+            Label("Diff viewer: \(controller.diffViewerName)", systemImage: "macwindow")
+        }
+    }
+
+    @ViewBuilder
+    private func viewerChoiceLabel(_ title: String, isSelected: Bool) -> some View {
+        if isSelected {
+            Label(title, systemImage: "checkmark")
+        } else {
+            Text(title)
+        }
     }
 }
 

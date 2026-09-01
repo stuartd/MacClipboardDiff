@@ -15,7 +15,7 @@ The app is copied to `releases/MacClipboardDiff.app` and opened.
 1. Copy the older text or file.
 2. Copy the newer text or file.
 3. Press `Option-Command-D`, or choose **Show Diff** from the menu bar item.
-4. View the diff in a native window.
+4. View the diff in the selected viewer. The built-in native window remains the default.
 
 You can also copy exactly two files together in Finder. MacClipboardDiff immediately treats the first file as **Previous** and the second as **Current**.
 
@@ -47,7 +47,31 @@ The full standardized file path is retained only with the corresponding in-memor
 - A copied value immediately followed by an explicit clipboard clear within 60 seconds is removed as a best-effort privacy measure.
 - Captured content is kept in memory only and lost when the app exits.
 - Slow file reads are superseded if a newer pasteboard change arrives.
-- The built-in diff is native SwiftUI; no temporary files or external diff processes are used.
+- The built-in diff is native SwiftUI and never writes captured text to disk.
+
+## External Diff Viewers
+
+The menu's **Diff viewer** submenu lists supported applications found on the Mac, provides **Choose Application…** for another app or executable, and lets you return to the built-in viewer. The selection is remembered.
+
+MacClipboardDiff recognizes these viewer profiles:
+
+- FileMerge
+- Kaleidoscope
+- Beyond Compare
+- Araxis Merge
+- Visual Studio Code
+- Cursor
+- BBEdit
+- KDiff3
+- Meld
+- P4Merge
+- SourceGear DiffMerge
+
+The app checks Launch Services, `/Applications`, `~/Applications`, common Homebrew command locations, and its process `PATH`. A manually selected unknown executable receives the previous and current file paths as two separate positional arguments. If a selected viewer is missing or cannot be launched, **Show Diff** falls back to the built-in viewer without discarding either capture.
+
+Known profiles use their supported wait, read-only, diff, and side-label options. File-backed captures preserve their basenames in separate **Previous** and **Current** directories, while viewers with title support receive the same disambiguated labels as the built-in diff.
+
+The local build is not App Sandbox-restricted because it must start the explicitly selected external executable. The app remains dependency-free and does not add network access or broaden its clipboard and copied-file workflow.
 
 ## Diff View
 
@@ -64,7 +88,11 @@ There is also a unified view for copying or scanning a compact diff. Diff rows a
 
 The recent-clear behavior is only a heuristic. An unmarked secret is otherwise indistinguishable from ordinary text, and Swift strings cannot be guaranteed to be securely zeroed. Operating-system paging, process dumps, other clipboard monitors, and macOS clipboard behavior are outside MacClipboardDiff's control.
 
-MacClipboardDiff intentionally has no external-viewer integration because that would require writing captured values to temporary plaintext files.
+The built-in viewer keeps the memory-only privacy model. Selecting an external viewer creates an explicit exception because another application cannot compare the captured strings directly. Before the first external comparison, MacClipboardDiff warns that clipboard text may contain secrets and asks for confirmation. Cancelling opens the built-in viewer and creates no files.
+
+After confirmation, each comparison writes two read-only UTF-8 plaintext files to a unique directory below the system temporary directory. MacClipboardDiff attempts to delete that directory after the launched comparison process exits, when MacClipboardDiff exits, and on its next launch. Cleanup is best effort: a crash, power loss, open file handle, or external application may leave or retain a copy. Do not select an external viewer when that disk exposure is unacceptable.
+
+Only the selected executable path and the one-time warning acknowledgement are stored in app preferences. Clipboard text, previews, diffs, and source paths are never stored there.
 
 ## Tests
 

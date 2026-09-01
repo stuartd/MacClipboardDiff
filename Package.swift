@@ -22,6 +22,7 @@ let package = Package(
                 "ClipboardStore.swift",
                 "DiffWindowController.swift",
                 "DiffWindowView.swift",
+                "ExternalDiffToolDiscovery.swift",
                 "HotKeyController.swift",
                 "MenuContentView.swift"
             ],
@@ -31,7 +32,11 @@ let package = Package(
                 "ClipboardModels.swift",
                 "ClipboardObservation.swift",
                 "CopiedFileTextReader.swift",
-                "DiffEngine.swift"
+                "DiffEngine.swift",
+                "ExternalDiffLauncher.swift",
+                "ExternalDiffSettings.swift",
+                "ExternalDiffTool.swift",
+                "ExternalDiffWorkspace.swift"
             ]
         ),
         .testTarget(

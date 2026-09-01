@@ -7,17 +7,22 @@ final class ClipDiffController: ObservableObject {
     @Published private(set) var activeDiff: DiffDocument?
     @Published private(set) var lastError: String?
     @Published private(set) var isGlobalShortcutAvailable = true
+    @Published private(set) var externalDiffTools: [ExternalDiffToolChoice]
     @Published var viewMode: DiffViewMode = .sideBySide
 
     private let clipboard: ClipboardStore
     private let fileReader: CopiedFileTextReader
     private let history: ClipboardHistory
+    private let externalDiffSettingsStore: ExternalDiffSettingsStore
+    private let externalDiffLauncher: ExternalDiffLauncher
+    private var externalDiffSettings: ExternalDiffSettings
     private var lastRequestedChangeCount: Int
     private var pendingFileReadChangeCount: Int?
     private var pendingFileRead: Task<Void, Never>?
     private var timer: Timer?
     private var diffWindowController: DiffWindowController?
     private var hotKeyController: HotKeyController?
+    private var applicationWillTerminateObserver: NSObjectProtocol?
 
     convenience init() {
         self.init(clipboard: SystemClipboardStore())
@@ -29,6 +34,12 @@ final class ClipDiffController: ObservableObject {
     ) {
         self.clipboard = clipboard
         self.fileReader = fileReader
+        externalDiffSettingsStore = ExternalDiffSettingsStore()
+        externalDiffSettings = externalDiffSettingsStore.load()
+        externalDiffLauncher = ExternalDiffLauncher()
+        externalDiffTools = ExternalDiffToolDiscovery.findInstalled(
+            selectedExecutablePath: externalDiffSettings.selectedExecutablePath
+        )
         history = ClipboardHistory(startupChangeCount: clipboard.changeCount)
         lastRequestedChangeCount = clipboard.changeCount
 
@@ -41,11 +52,22 @@ final class ClipDiffController: ObservableObject {
         }
         self.hotKeyController = hotKeyController
         isGlobalShortcutAvailable = hotKeyController.isRegistered
+
+        applicationWillTerminateObserver = NotificationCenter.default.addObserver(
+            forName: NSApplication.willTerminateNotification,
+            object: nil,
+            queue: .main
+        ) { [weak externalDiffLauncher = externalDiffLauncher] _ in
+            externalDiffLauncher?.cleanupAll()
+        }
     }
 
     deinit {
         timer?.invalidate()
         pendingFileRead?.cancel()
+        if let applicationWillTerminateObserver {
+            NotificationCenter.default.removeObserver(applicationWillTerminateObserver)
+        }
     }
 
     var entries: [ClipboardEntry] {
@@ -94,6 +116,19 @@ final class ClipDiffController: ObservableObject {
         history.statusText
     }
 
+    var selectedExternalDiffTool: ExternalDiffToolChoice? {
+        guard let selectedPath = externalDiffSettings.selectedExecutablePath else {
+            return nil
+        }
+        return externalDiffTools.first { choice in
+            choice.executableURL.path == selectedPath
+        }
+    }
+
+    var diffViewerName: String {
+        selectedExternalDiffTool?.displayName ?? "Built-in viewer"
+    }
+
     func showDiff() {
         guard let previousEntry, let currentEntry else {
             lastError = "Copy two text values or files first."
@@ -101,13 +136,66 @@ final class ClipDiffController: ObservableObject {
             return
         }
 
+        var fallbackError: String?
+        if let selectedExternalDiffTool,
+           confirmExternalDiffRisk() {
+            let labels = DiffEngine.makeLabels(
+                previous: previousEntry,
+                current: currentEntry
+            )
+            if externalDiffLauncher.tryLaunch(
+                selectedExternalDiffTool,
+                previous: previousEntry,
+                current: currentEntry,
+                labels: labels
+            ) {
+                lastError = nil
+                return
+            }
+            fallbackError = "Could not open \(selectedExternalDiffTool.displayName). Showing the built-in viewer."
+        }
+
         activeDiff = DiffEngine.makeDocument(previous: previousEntry, current: currentEntry)
-        lastError = nil
+        lastError = fallbackError
 
         if diffWindowController == nil {
             diffWindowController = DiffWindowController(controller: self)
         }
         diffWindowController?.show()
+    }
+
+    func selectExternalDiffTool(_ choice: ExternalDiffToolChoice?) {
+        objectWillChange.send()
+        externalDiffSettings.selectedExecutablePath = choice?.executableURL.path
+        externalDiffSettingsStore.save(externalDiffSettings)
+        lastError = nil
+    }
+
+    func chooseExternalDiffTool() {
+        let panel = NSOpenPanel()
+        panel.title = "Choose a diff application"
+        panel.message = "Choose a macOS application or executable that can compare two file paths."
+        panel.prompt = "Choose"
+        panel.canChooseFiles = true
+        panel.canChooseDirectories = false
+        panel.allowsMultipleSelection = false
+        panel.treatsFilePackagesAsDirectories = false
+
+        guard panel.runModal() == .OK,
+              let selectedURL = panel.url else {
+            return
+        }
+
+        guard let choice = ExternalDiffToolDiscovery.choice(forSelectedURL: selectedURL) else {
+            lastError = "That item is not an executable diff application."
+            NSSound.beep()
+            return
+        }
+
+        if !externalDiffTools.contains(where: { $0.id == choice.id }) {
+            externalDiffTools.append(choice)
+        }
+        selectExternalDiffTool(choice)
     }
 
     func clearCapturedText() {
@@ -138,6 +226,35 @@ final class ClipDiffController: ObservableObject {
 
     func showAbout() {
         AppAbout.show()
+    }
+
+    private func confirmExternalDiffRisk() -> Bool {
+        guard !externalDiffSettings.plaintextWarningAcknowledged else {
+            return true
+        }
+
+        let alert = NSAlert()
+        alert.alertStyle = .warning
+        alert.messageText = "External diff privacy notice"
+        alert.informativeText = """
+        External diff applications require ClipDiff to write the previous and current text to read-only plaintext files in its temporary folder. Clipboard text may contain passwords, tokens, or other secrets.
+
+        ClipDiff attempts to delete these files after the comparison application closes, when ClipDiff quits, and on its next launch. Files may remain after a crash or power loss, and the chosen application may retain its own copies.
+        """
+        let continueButton = alert.addButton(withTitle: "Continue")
+        let builtInButton = alert.addButton(withTitle: "Use Built-in Viewer")
+        continueButton.keyEquivalent = ""
+        builtInButton.keyEquivalent = "\r"
+
+        NSApplication.shared.activate(ignoringOtherApps: true)
+
+        guard alert.runModal() == .alertFirstButtonReturn else {
+            return false
+        }
+
+        externalDiffSettings.plaintextWarningAcknowledged = true
+        externalDiffSettingsStore.save(externalDiffSettings)
+        return true
     }
 
     private func startMonitoring() {

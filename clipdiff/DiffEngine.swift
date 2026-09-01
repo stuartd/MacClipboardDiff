@@ -40,7 +40,7 @@ enum DiffEngine {
         return lines.joined(separator: "\n")
     }
 
-    private static func makeLabels(
+    static func makeLabels(
         previous: ClipboardEntry,
         current: ClipboardEntry
     ) -> DiffSideLabels {
