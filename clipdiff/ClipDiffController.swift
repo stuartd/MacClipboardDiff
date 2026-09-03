@@ -1,5 +1,6 @@
 import AppKit
 import Combine
+import FinderSync
 import Foundation
 
 @MainActor
@@ -7,20 +8,24 @@ final class ClipDiffController: ObservableObject {
     @Published private(set) var activeDiff: DiffDocument?
     @Published private(set) var lastError: String?
     @Published private(set) var isGlobalShortcutAvailable = true
+    @Published private(set) var globalShortcut: GlobalShortcut
     @Published private(set) var externalDiffTools: [ExternalDiffToolChoice]
     @Published var viewMode: DiffViewMode = .sideBySide
 
     private let clipboard: ClipboardStore
     private let fileReader: CopiedFileTextReader
     private let history: ClipboardHistory
+    private let globalShortcutSettingsStore: GlobalShortcutSettingsStore
     private let externalDiffSettingsStore: ExternalDiffSettingsStore
     private let externalDiffLauncher: ExternalDiffLauncher
     private var externalDiffSettings: ExternalDiffSettings
     private var lastRequestedChangeCount: Int
     private var pendingFileReadChangeCount: Int?
     private var pendingFileRead: Task<Void, Never>?
+    private var pendingSelectedFileRead: Task<Void, Never>?
     private var timer: Timer?
     private var diffWindowController: DiffWindowController?
+    private var shortcutSettingsWindowController: ShortcutSettingsWindowController?
     private var hotKeyController: HotKeyController?
     private var applicationWillTerminateObserver: NSObjectProtocol?
 
@@ -34,6 +39,8 @@ final class ClipDiffController: ObservableObject {
     ) {
         self.clipboard = clipboard
         self.fileReader = fileReader
+        globalShortcutSettingsStore = GlobalShortcutSettingsStore()
+        globalShortcut = globalShortcutSettingsStore.load()
         externalDiffSettingsStore = ExternalDiffSettingsStore()
         externalDiffSettings = externalDiffSettingsStore.load()
         externalDiffLauncher = ExternalDiffLauncher()
@@ -45,7 +52,7 @@ final class ClipDiffController: ObservableObject {
 
         startMonitoring()
 
-        let hotKeyController = HotKeyController { [weak self] in
+        let hotKeyController = HotKeyController(shortcut: globalShortcut) { [weak self] in
             Task { @MainActor in
                 self?.showDiff()
             }
@@ -60,11 +67,13 @@ final class ClipDiffController: ObservableObject {
         ) { [weak externalDiffLauncher = externalDiffLauncher] _ in
             externalDiffLauncher?.cleanupAll()
         }
+
     }
 
     deinit {
         timer?.invalidate()
         pendingFileRead?.cancel()
+        pendingSelectedFileRead?.cancel()
         if let applicationWillTerminateObserver {
             NotificationCenter.default.removeObserver(applicationWillTerminateObserver)
         }
@@ -129,6 +138,10 @@ final class ClipDiffController: ObservableObject {
         selectedExternalDiffTool?.displayName ?? "Built-in viewer"
     }
 
+    var isFinderIntegrationEnabled: Bool {
+        FIFinderSyncController.isExtensionEnabled
+    }
+
     func showDiff() {
         guard let previousEntry, let currentEntry else {
             lastError = "Copy two text values or files first."
@@ -171,6 +184,52 @@ final class ClipDiffController: ObservableObject {
         lastError = nil
     }
 
+    func showShortcutSettings() {
+        if shortcutSettingsWindowController == nil {
+            shortcutSettingsWindowController = ShortcutSettingsWindowController(controller: self)
+        }
+        shortcutSettingsWindowController?.show()
+    }
+
+    @discardableResult
+    func setGlobalShortcut(_ shortcut: GlobalShortcut) -> Bool {
+        guard hotKeyController?.updateShortcut(shortcut) == true else {
+            isGlobalShortcutAvailable = hotKeyController?.isRegistered ?? false
+            lastError = "That keyboard shortcut is already in use."
+            NSSound.beep()
+            return false
+        }
+
+        globalShortcut = shortcut
+        globalShortcutSettingsStore.save(shortcut)
+        isGlobalShortcutAvailable = true
+        lastError = nil
+        return true
+    }
+
+    func showFinderIntegrationSettings() {
+        FIFinderSyncController.showExtensionManagementInterface()
+    }
+
+    func compareSelectedFiles(_ fileURLs: [URL]) {
+        guard fileURLs.count == 2 else {
+            lastError = "Choose exactly two text files to compare."
+            NSSound.beep()
+            return
+        }
+
+        cancelPendingFileRead()
+        pendingSelectedFileRead?.cancel()
+        lastRequestedChangeCount = clipboard.changeCount
+        let fileReader = self.fileReader
+
+        pendingSelectedFileRead = Task { [weak self] in
+            let values = await fileReader.readValues(from: fileURLs)
+            guard !Task.isCancelled else { return }
+            self?.finishSelectedFileRead(values)
+        }
+    }
+
     func chooseExternalDiffTool() {
         let panel = NSOpenPanel()
         panel.title = "Choose a diff application"
@@ -200,6 +259,8 @@ final class ClipDiffController: ObservableObject {
 
     func clearCapturedText() {
         cancelPendingFileRead()
+        pendingSelectedFileRead?.cancel()
+        pendingSelectedFileRead = nil
         objectWillChange.send()
         history.clearCapturedText()
         activeDiff = nil
@@ -377,6 +438,26 @@ final class ClipDiffController: ObservableObject {
                 content: content
             )
         )
+    }
+
+    private func finishSelectedFileRead(_ values: [CopiedFileText]) {
+        pendingSelectedFileRead = nil
+
+        guard values.count == 2 else {
+            lastError = "The selected files could not be read."
+            NSSound.beep()
+            return
+        }
+
+        history.replaceComparisonPair(
+            previous: values[0].capturedValue,
+            current: values[1].capturedValue,
+            capturedAt: Date()
+        )
+        activeDiff = nil
+        lastError = nil
+        objectWillChange.send()
+        showDiff()
     }
 
     private func apply(_ observation: ClipboardObservation) {

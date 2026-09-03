@@ -148,6 +148,32 @@ final class ClipboardHistoryTests: XCTestCase {
         XCTAssertEqual(history.statusText, "Waiting for copied text")
     }
 
+    func testExplicitComparisonPairWorksWhileMonitoringIsPaused() {
+        let history = ClipboardHistory()
+        history.apply(text(1, "discarded"))
+        history.pause()
+
+        history.replaceComparisonPair(
+            previous: CapturedClipboardValue(
+                text: "old",
+                sourceFileName: "old.txt",
+                sourceFilePath: "/tmp/old.txt"
+            ),
+            current: CapturedClipboardValue(
+                text: "new",
+                sourceFileName: "new.txt",
+                sourceFilePath: "/tmp/new.txt"
+            ),
+            capturedAt: start
+        )
+
+        XCTAssertEqual(history.entries.map(\.text), ["new", "old"])
+        XCTAssertEqual(history.previousEntry?.sourceFileName, "old.txt")
+        XCTAssertEqual(history.currentEntry?.sourceFileName, "new.txt")
+        XCTAssertTrue(history.canDiff)
+        XCTAssertFalse(history.isMonitoring)
+    }
+
     func testStartupChangeCountIsOnlyABaseline() {
         let history = ClipboardHistory(startupChangeCount: 42)
 

@@ -18,13 +18,15 @@ let package = Package(
                 "AppAbout.swift",
                 "Assets.xcassets",
                 "clipdiffApp.swift",
+                "ClipDiffApplicationDelegate.swift",
                 "ClipDiffController.swift",
                 "ClipboardStore.swift",
                 "DiffWindowController.swift",
                 "DiffWindowView.swift",
                 "ExternalDiffToolDiscovery.swift",
                 "HotKeyController.swift",
-                "MenuContentView.swift"
+                "MenuContentView.swift",
+                "ShortcutSettingsWindowController.swift"
             ],
             sources: [
                 "AppVersionFormatter.swift",
@@ -36,7 +38,9 @@ let package = Package(
                 "ExternalDiffLauncher.swift",
                 "ExternalDiffSettings.swift",
                 "ExternalDiffTool.swift",
-                "ExternalDiffWorkspace.swift"
+                "ExternalDiffWorkspace.swift",
+                "FinderComparisonRequest.swift",
+                "GlobalShortcut.swift"
             ]
         ),
         .testTarget(

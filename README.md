@@ -14,10 +14,16 @@ The app is copied to `releases/MacClipboardDiff.app` and opened.
 
 1. Copy the older text or file.
 2. Copy the newer text or file.
-3. Press `Option-Command-D`, or choose **Show Diff** from the menu bar item.
+3. Press `Option-Command-D`, or choose **Show Diff** from the menu bar item. Choose **Keyboard shortcut** in that menu to record a different global shortcut.
 4. View the diff in the selected viewer. The built-in native window remains the default.
 
 You can also copy exactly two files together in Finder. MacClipboardDiff immediately treats the first file as **Previous** and the second as **Current**.
+
+## Finder Context Menu
+
+The app includes a Finder Sync extension. Choose **Enable Finder menu…** in the ClipDiff menu and enable **ClipDiff Finder Integration** in macOS System Settings. When exactly two regular files whose Finder types conform to text are selected, Finder shows **Compare two selected files with ClipDiff** in the contextual menu. Other selection counts, folders, and non-text file types do not show the command.
+
+Choosing the command opens ClipDiff if necessary, reads the pair with the same bounded decoder used for copied files, replaces the in-memory comparison pair, and immediately shows the diff. The first Finder selection is **Previous** and the second is **Current**.
 
 ## Copied Files
 
@@ -41,6 +47,7 @@ The full standardized file path is retained only with the corresponding in-memor
 ## Design
 
 - The app monitors `NSPasteboard.changeCount` and captures only future changes.
+- The optional Finder extension inspects selection metadata only to decide whether to show its command. File contents are read only after that command is chosen.
 - Plain text and one or two copied file URLs are supported.
 - Separate copy events are captured even when their text is identical.
 - Unsupported non-text changes are ignored without clearing history.
@@ -92,7 +99,7 @@ The built-in viewer keeps the memory-only privacy model. Selecting an external v
 
 After confirmation, each comparison writes two read-only UTF-8 plaintext files to a unique directory below the system temporary directory. MacClipboardDiff attempts to delete that directory after the launched comparison process exits, when MacClipboardDiff exits, and on its next launch. Cleanup is best effort: a crash, power loss, open file handle, or external application may leave or retain a copy. Do not select an external viewer when that disk exposure is unacceptable.
 
-Only the selected executable path and the one-time warning acknowledgement are stored in app preferences. Clipboard text, previews, diffs, and source paths are never stored there.
+Only the selected executable path, the one-time warning acknowledgement, and the chosen global shortcut are stored in app preferences. Clipboard text, previews, diffs, and source paths are never stored there.
 
 ## Tests
 

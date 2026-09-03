@@ -99,6 +99,18 @@ final class ClipboardHistory {
         clearEligibility = nil
     }
 
+    func replaceComparisonPair(
+        previous previousValue: CapturedClipboardValue,
+        current currentValue: CapturedClipboardValue,
+        capturedAt: Date
+    ) {
+        entries = [
+            makeEntry(from: currentValue, capturedAt: capturedAt),
+            makeEntry(from: previousValue, capturedAt: capturedAt)
+        ]
+        clearEligibility = nil
+    }
+
     private func insert(
         _ value: CapturedClipboardValue,
         capturedAt: Date

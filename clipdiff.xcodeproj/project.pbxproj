@@ -6,9 +6,48 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		CD0000000000000000000001 /* ClipDiffFinderSync.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = CD0000000000000000000002 /* ClipDiffFinderSync.appex */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		CD0000000000000000000008 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 1745E0942FB2AAD000192FFA /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = CD000000000000000000000A;
+			remoteInfo = ClipDiffFinderSync;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		CD0000000000000000000007 /* Embed App Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				CD0000000000000000000001 /* ClipDiffFinderSync.appex in Embed App Extensions */,
+			);
+			name = "Embed App Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
 /* Begin PBXFileReference section */
 		1745E09C2FB2AAD000192FFA /* clipdiff.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; name = clipdiff.app; path = ClipDiff.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		CD0000000000000000000002 /* ClipDiffFinderSync.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = ClipDiffFinderSync.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
+
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		CD000000000000000000000E /* Exceptions for "ClipDiffFinderSync" folder in "ClipDiffFinderSync" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = CD000000000000000000000A /* ClipDiffFinderSync */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		1745E09E2FB2AAD000192FFA /* clipdiff */ = {
@@ -16,10 +55,25 @@
 			path = clipdiff;
 			sourceTree = "<group>";
 		};
+		CD0000000000000000000003 /* ClipDiffFinderSync */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				CD000000000000000000000E /* Exceptions for "ClipDiffFinderSync" folder in "ClipDiffFinderSync" target */,
+			);
+			path = ClipDiffFinderSync;
+			sourceTree = "<group>";
+		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
 		1745E0992FB2AAD000192FFA /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		CD0000000000000000000004 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -33,6 +87,7 @@
 			isa = PBXGroup;
 			children = (
 				1745E09E2FB2AAD000192FFA /* clipdiff */,
+				CD0000000000000000000003 /* ClipDiffFinderSync */,
 				1745E09D2FB2AAD000192FFA /* Products */,
 			);
 			sourceTree = "<group>";
@@ -41,6 +96,7 @@
 			isa = PBXGroup;
 			children = (
 				1745E09C2FB2AAD000192FFA /* clipdiff.app */,
+				CD0000000000000000000002 /* ClipDiffFinderSync.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -55,10 +111,12 @@
 				1745E0982FB2AAD000192FFA /* Sources */,
 				1745E0992FB2AAD000192FFA /* Frameworks */,
 				1745E09A2FB2AAD000192FFA /* Resources */,
+				CD0000000000000000000007 /* Embed App Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				CD0000000000000000000009 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				1745E09E2FB2AAD000192FFA /* clipdiff */,
@@ -69,6 +127,28 @@
 			productName = clipdiff;
 			productReference = 1745E09C2FB2AAD000192FFA /* clipdiff.app */;
 			productType = "com.apple.product-type.application";
+		};
+		CD000000000000000000000A /* ClipDiffFinderSync */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = CD000000000000000000000D /* Build configuration list for PBXNativeTarget "ClipDiffFinderSync" */;
+			buildPhases = (
+				CD0000000000000000000006 /* Sources */,
+				CD0000000000000000000004 /* Frameworks */,
+				CD0000000000000000000005 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				CD0000000000000000000003 /* ClipDiffFinderSync */,
+			);
+			name = ClipDiffFinderSync;
+			packageProductDependencies = (
+			);
+			productName = ClipDiffFinderSync;
+			productReference = CD0000000000000000000002 /* ClipDiffFinderSync.appex */;
+			productType = "com.apple.product-type.app-extension";
 		};
 /* End PBXNativeTarget section */
 
@@ -81,6 +161,9 @@
 				LastUpgradeCheck = 2640;
 				TargetAttributes = {
 					1745E09B2FB2AAD000192FFA = {
+						CreatedOnToolsVersion = 26.4.1;
+					};
+					CD000000000000000000000A = {
 						CreatedOnToolsVersion = 26.4.1;
 					};
 				};
@@ -100,12 +183,20 @@
 			projectRoot = "";
 			targets = (
 				1745E09B2FB2AAD000192FFA /* clipdiff */,
+				CD000000000000000000000A /* ClipDiffFinderSync */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
 		1745E09A2FB2AAD000192FFA /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		CD0000000000000000000005 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -122,7 +213,22 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		CD0000000000000000000006 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		CD0000000000000000000009 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = CD000000000000000000000A /* ClipDiffFinderSync */;
+			targetProxy = CD0000000000000000000008 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		1745E0A52FB2AAD100192FFA /* Debug */ = {
@@ -303,6 +409,60 @@
 			};
 			name = Release;
 		};
+		CD000000000000000000000B /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_APP_SANDBOX = YES;
+				ENABLE_USER_SELECTED_FILES = readonly;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = ClipDiffFinderSync/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@executable_path/../../../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = stuartd.clipdiff.finder-sync;
+				PRODUCT_NAME = ClipDiffFinderSync;
+				SKIP_INSTALL = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		CD000000000000000000000C /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_APP_SANDBOX = YES;
+				ENABLE_USER_SELECTED_FILES = readonly;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = ClipDiffFinderSync/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@executable_path/../../../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = stuartd.clipdiff.finder-sync;
+				PRODUCT_NAME = ClipDiffFinderSync;
+				SKIP_INSTALL = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -320,6 +480,15 @@
 			buildConfigurations = (
 				1745E0A82FB2AAD100192FFA /* Debug */,
 				1745E0A92FB2AAD100192FFA /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		CD000000000000000000000D /* Build configuration list for PBXNativeTarget "ClipDiffFinderSync" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				CD000000000000000000000B /* Debug */,
+				CD000000000000000000000C /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

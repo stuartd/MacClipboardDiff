@@ -14,11 +14,36 @@ struct MenuContentView: View {
 
             Divider()
 
-            if controller.isGlobalShortcutAvailable {
-                showDiffButton(title: "Show Diff")
-                    .keyboardShortcut("d", modifiers: [.command, .option])
-            } else {
-                showDiffButton(title: "Show Diff (shortcut unavailable)")
+            showDiffButton(
+                title: controller.isGlobalShortcutAvailable
+                    ? "Show Diff"
+                    : "Show Diff (shortcut unavailable)"
+            )
+            .clipDiffKeyboardShortcut(
+                controller.globalShortcut,
+                enabled: controller.isGlobalShortcutAvailable
+            )
+
+            Button {
+                controller.showShortcutSettings()
+            } label: {
+                Label(
+                    "Keyboard shortcut: \(controller.globalShortcut.displayString)",
+                    systemImage: "keyboard"
+                )
+            }
+
+            Button {
+                controller.showFinderIntegrationSettings()
+            } label: {
+                Label(
+                    controller.isFinderIntegrationEnabled
+                        ? "Finder menu: Enabled…"
+                        : "Enable Finder menu…",
+                    systemImage: controller.isFinderIntegrationEnabled
+                        ? "checkmark.circle"
+                        : "puzzlepiece.extension"
+                )
             }
 
             diffViewerMenu
@@ -139,6 +164,34 @@ struct MenuContentView: View {
         } else {
             Text(title)
         }
+    }
+}
+
+private extension View {
+    @ViewBuilder
+    func clipDiffKeyboardShortcut(
+        _ shortcut: GlobalShortcut,
+        enabled: Bool
+    ) -> some View {
+        if enabled, let character = shortcut.keyLabel.lowercased().first {
+            keyboardShortcut(
+                KeyEquivalent(character),
+                modifiers: shortcut.swiftUIEventModifiers
+            )
+        } else {
+            self
+        }
+    }
+}
+
+private extension GlobalShortcut {
+    var swiftUIEventModifiers: EventModifiers {
+        var result: EventModifiers = []
+        if modifiers.contains(.command) { result.insert(.command) }
+        if modifiers.contains(.option) { result.insert(.option) }
+        if modifiers.contains(.control) { result.insert(.control) }
+        if modifiers.contains(.shift) { result.insert(.shift) }
+        return result
     }
 }
 

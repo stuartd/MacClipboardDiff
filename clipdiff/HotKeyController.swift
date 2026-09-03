@@ -10,20 +10,43 @@ final class HotKeyController {
     private let action: () -> Void
 
     private(set) var isRegistered = false
+    private(set) var registeredShortcut: GlobalShortcut?
 
-    init(action: @escaping () -> Void) {
+    init(shortcut: GlobalShortcut, action: @escaping () -> Void) {
         self.action = action
         installEventHandler()
-        registerHotKey()
+        isRegistered = registerHotKey(shortcut)
+        if isRegistered {
+            registeredShortcut = shortcut
+        }
     }
 
     deinit {
-        if let hotKeyRef {
-            UnregisterEventHotKey(hotKeyRef)
-        }
+        unregisterHotKey()
         if let eventHandler {
             RemoveEventHandler(eventHandler)
         }
+    }
+
+    @discardableResult
+    func updateShortcut(_ shortcut: GlobalShortcut) -> Bool {
+        let previousShortcut = registeredShortcut
+        unregisterHotKey()
+
+        if registerHotKey(shortcut) {
+            registeredShortcut = shortcut
+            isRegistered = true
+            return true
+        }
+
+        if let previousShortcut, registerHotKey(previousShortcut) {
+            registeredShortcut = previousShortcut
+            isRegistered = true
+        } else {
+            registeredShortcut = nil
+            isRegistered = false
+        }
+        return false
     }
 
     private func installEventHandler() {
@@ -68,21 +91,40 @@ final class HotKeyController {
         )
     }
 
-    private func registerHotKey() {
+    private func registerHotKey(_ shortcut: GlobalShortcut) -> Bool {
         let hotKeyID = EventHotKeyID(
             signature: clipDiffHotKeySignature,
             id: clipDiffHotKeyID
         )
 
         let status = RegisterEventHotKey(
-            UInt32(kVK_ANSI_D),
-            UInt32(cmdKey) | UInt32(optionKey),
+            shortcut.keyCode,
+            carbonModifiers(for: shortcut.modifiers),
             hotKeyID,
             GetApplicationEventTarget(),
             0,
             &hotKeyRef
         )
 
-        isRegistered = status == noErr
+        if status != noErr {
+            hotKeyRef = nil
+        }
+        return status == noErr
+    }
+
+    private func unregisterHotKey() {
+        if let hotKeyRef {
+            UnregisterEventHotKey(hotKeyRef)
+            self.hotKeyRef = nil
+        }
+    }
+
+    private func carbonModifiers(for modifiers: GlobalShortcut.Modifiers) -> UInt32 {
+        var result: UInt32 = 0
+        if modifiers.contains(.command) { result |= UInt32(cmdKey) }
+        if modifiers.contains(.option) { result |= UInt32(optionKey) }
+        if modifiers.contains(.control) { result |= UInt32(controlKey) }
+        if modifiers.contains(.shift) { result |= UInt32(shiftKey) }
+        return result
     }
 }

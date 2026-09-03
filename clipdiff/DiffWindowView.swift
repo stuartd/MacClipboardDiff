@@ -18,7 +18,7 @@ struct DiffWindowView: View {
                     }
                 }
             } else {
-                EmptyDiffView()
+                EmptyDiffView(shortcut: controller.globalShortcut.displayString)
             }
         }
         .frame(minWidth: 760, minHeight: 480)
@@ -259,6 +259,8 @@ private struct UnifiedDiffView: View {
 }
 
 private struct EmptyDiffView: View {
+    let shortcut: String
+
     var body: some View {
         VStack(spacing: 10) {
             Image(systemName: "doc.text.magnifyingglass")
@@ -268,7 +270,7 @@ private struct EmptyDiffView: View {
             Text("No Diff")
                 .font(.title3.weight(.semibold))
 
-            Text("Copy two text values, then press Option-Command-D.")
+            Text("Copy two text values, then press \(shortcut).")
                 .foregroundStyle(.secondary)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
