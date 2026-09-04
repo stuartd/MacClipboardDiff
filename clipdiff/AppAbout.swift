@@ -28,28 +28,43 @@ enum AppAbout {
     }
 
     private static var credits: NSAttributedString {
-        let result = NSMutableAttributedString(string: "A tiny local clipboard comparison tool.\n\n")
-        result.append(NSAttributedString(string: "Created by Stuart Dunkeld\n"))
-        result.append(link("stuartd.dev", destination: "https://stuartd.dev/"))
-        result.append(NSAttributedString(string: "\n"))
+        let paragraphStyle = NSMutableParagraphStyle()
+        paragraphStyle.alignment = .center
+
+        let attributes: [NSAttributedString.Key: Any] = [
+            .font: NSFont.systemFont(ofSize: 14),
+            .paragraphStyle: paragraphStyle
+        ]
+
+        let result = NSMutableAttributedString(
+            string: "A minimal clipboard diff tool.\n\n",
+            attributes: attributes
+        )
         result.append(link(
             "MacClipboardDiff project",
-            destination: "https://github.com/stuartd/MacClipboardDiff"
+            destination: "https://github.com/stuartd/MacClipboardDiff",
+            attributes: attributes
         ))
         return result
     }
 
-    private static func link(_ title: String, destination: String) -> NSAttributedString {
+    private static func link(
+        _ title: String,
+        destination: String,
+        attributes: [NSAttributedString.Key: Any]
+    ) -> NSAttributedString {
         guard let url = URL(string: destination) else {
-            return NSAttributedString(string: title)
+            return NSAttributedString(string: title, attributes: attributes)
         }
+
+        var linkAttributes = attributes
+        linkAttributes[.link] = url
+        linkAttributes[.foregroundColor] = NSColor.linkColor
+        linkAttributes[.underlineStyle] = NSUnderlineStyle.single.rawValue
+
         return NSAttributedString(
             string: title,
-            attributes: [
-                .link: url,
-                .foregroundColor: NSColor.linkColor,
-                .underlineStyle: NSUnderlineStyle.single.rawValue
-            ]
+            attributes: linkAttributes
         )
     }
 }
