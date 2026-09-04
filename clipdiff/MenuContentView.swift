@@ -28,7 +28,7 @@ struct MenuContentView: View {
                 controller.showShortcutSettings()
             } label: {
                 Label(
-                    "Keyboard shortcut: \(controller.globalShortcut.displayString)",
+                    "Change Keyboard Shortcut…",
                     systemImage: "keyboard"
                 )
             }
