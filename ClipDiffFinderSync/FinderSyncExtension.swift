@@ -1,6 +1,5 @@
 import AppKit
 import FinderSync
-import UniformTypeIdentifiers
 
 final class FinderSyncExtension: FIFinderSync {
     private static let menuTitle = "Compare two selected files with ClipDiff"
@@ -73,15 +72,11 @@ final class FinderSyncExtension: FIFinderSync {
 
         return urls.allSatisfy { url in
             guard url.isFileURL,
-                  let values = try? url.resourceValues(forKeys: [
-                    .contentTypeKey,
-                    .isRegularFileKey
-                  ]),
-                  values.isRegularFile == true,
-                  let contentType = values.contentType else {
+                  let values = try? url.resourceValues(forKeys: [.isRegularFileKey]),
+                  values.isRegularFile == true else {
                 return false
             }
-            return contentType.conforms(to: .text)
+            return true
         }
     }
 

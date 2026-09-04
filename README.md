@@ -21,9 +21,9 @@ You can also copy exactly two files together in Finder. MacClipboardDiff immedia
 
 ## Finder Context Menu
 
-The app includes a Finder Sync extension. Choose **Enable Finder menu…** in the ClipDiff menu and enable **ClipDiff Finder Integration** in macOS System Settings. When exactly two regular files whose Finder types conform to text are selected, Finder shows **Compare two selected files with ClipDiff** in the contextual menu. Other selection counts, folders, and non-text file types do not show the command.
+The app includes a Finder Sync extension. Choose **Enable Finder menu…** in the ClipDiff menu and enable **ClipDiff Finder Integration** in macOS System Settings. When exactly two regular files are selected, Finder shows **Compare two selected files with ClipDiff** in the contextual menu. Other selection counts and folders do not show the command.
 
-Choosing the command opens ClipDiff if necessary, reads the pair with the same bounded decoder used for copied files, replaces the in-memory comparison pair, and immediately shows the diff. The first Finder selection is **Previous** and the second is **Current**.
+Choosing the command opens ClipDiff if necessary, reads and classifies the pair with the same bounded decoder used for copied files, replaces the in-memory comparison pair, and immediately shows the diff. Binary and otherwise unusable files use the documented filename-and-reason fallback. The first Finder selection is **Previous** and the second is **Current**.
 
 ## Copied Files
 
