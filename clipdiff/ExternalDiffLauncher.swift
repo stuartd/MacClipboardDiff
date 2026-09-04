@@ -27,7 +27,9 @@ final class ExternalDiffLauncher {
         current: ClipboardEntry,
         labels: DiffSideLabels
     ) -> Bool {
-        guard FileManager.default.isExecutableFile(atPath: choice.executableURL.path) else {
+        let launcherURL = choice.tool.launcherExecutablePath.map(URL.init(fileURLWithPath:))
+            ?? choice.executableURL
+        guard FileManager.default.isExecutableFile(atPath: launcherURL.path) else {
             return false
         }
 
@@ -44,7 +46,7 @@ final class ExternalDiffLauncher {
         }
 
         let process = Process()
-        process.executableURL = choice.executableURL
+        process.executableURL = launcherURL
         process.currentDirectoryURL = files.directoryURL
         process.arguments = choice.tool.arguments(
             previousPath: files.previousURL.path,

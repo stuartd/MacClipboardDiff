@@ -34,6 +34,16 @@ final class ExternalDiffToolCatalogTests: XCTestCase {
         )
     }
 
+    func testFileMergeUsesOpenDiffLauncher() {
+        let tool = ExternalDiffToolCatalog.tools.first { $0.id == "filemerge" }!
+
+        XCTAssertEqual(tool.launcherExecutablePath, "/usr/bin/opendiff")
+        XCTAssertEqual(
+            tool.arguments(previousPath: previous, currentPath: current),
+            [previous, current]
+        )
+    }
+
     func testKnownToolsReceiveReadOnlyAndSideTitleArguments() {
         XCTAssertEqual(
             arguments("beyond-compare"),

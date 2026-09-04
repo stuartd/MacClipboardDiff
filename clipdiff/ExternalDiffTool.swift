@@ -15,6 +15,7 @@ struct ExternalDiffTool {
     let bundleIdentifiers: [String]
     let bundledExecutablePaths: [String]
     let knownExecutablePaths: [String]
+    let launcherExecutablePath: String?
     private let argumentBuilder: ArgumentBuilder
 
     init(
@@ -25,6 +26,7 @@ struct ExternalDiffTool {
         bundleIdentifiers: [String] = [],
         bundledExecutablePaths: [String] = [],
         knownExecutablePaths: [String] = [],
+        launcherExecutablePath: String? = nil,
         argumentBuilder: @escaping ArgumentBuilder
     ) {
         self.id = id
@@ -34,6 +36,7 @@ struct ExternalDiffTool {
         self.bundleIdentifiers = bundleIdentifiers
         self.bundledExecutablePaths = bundledExecutablePaths
         self.knownExecutablePaths = knownExecutablePaths
+        self.launcherExecutablePath = launcherExecutablePath
         self.argumentBuilder = argumentBuilder
     }
 
@@ -72,6 +75,7 @@ enum ExternalDiffToolCatalog {
             knownExecutablePaths: [
                 "/Applications/Xcode.app/Contents/Applications/FileMerge.app/Contents/MacOS/FileMerge"
             ],
+            launcherExecutablePath: "/usr/bin/opendiff",
             argumentBuilder: positionalArguments
         ),
         ExternalDiffTool(
