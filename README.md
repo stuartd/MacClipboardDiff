@@ -54,6 +54,10 @@ The full standardized file path is retained only with the corresponding in-memor
 - A copied value immediately followed by an explicit clipboard clear within 60 seconds is removed as a best-effort privacy measure.
 - Captured content is kept in memory only and lost when the app exits.
 - Slow file reads are superseded if a newer pasteboard change arrives.
+- Clipboard items marked `org.nspasteboard.ConcealedType` or
+  `org.nspasteboard.TransientType` are ignored before MacClipboardDiff reads
+  either their text or file URLs. These advisory markers are commonly used by
+  password managers and other privacy-conscious clipboard producers.
 - The built-in diff is native SwiftUI and never writes captured text to disk.
 
 ## External Diff Viewers
@@ -95,6 +99,10 @@ There is also a unified view for copying or scanning a compact diff. Diff rows a
 
 The recent-clear behavior is only a heuristic. An unmarked secret is otherwise indistinguishable from ordinary text, and Swift strings cannot be guaranteed to be securely zeroed. Operating-system paging, process dumps, other clipboard monitors, and macOS clipboard behavior are outside MacClipboardDiff's control.
 
+Concealed and transient pasteboard markers are advisory and depend on the source
+application providing them. MacClipboardDiff does not guess whether unmarked text
+is sensitive from its contents, length, or source application.
+
 The built-in viewer keeps the memory-only privacy model. Selecting an external viewer creates an explicit exception because another application cannot compare the captured strings directly. Before the first external comparison, MacClipboardDiff warns that clipboard text may contain secrets and asks for confirmation. Cancelling opens the built-in viewer and creates no files.
 
 After confirmation, each comparison writes two read-only UTF-8 plaintext files to a unique directory below the system temporary directory. MacClipboardDiff attempts to delete that directory after the launched comparison process exits, when MacClipboardDiff exits, and on its next launch. Cleanup is best effort: a crash, power loss, open file handle, or external application may leave or retain a copy. Do not select an external viewer when that disk exposure is unacceptable.
@@ -103,7 +111,9 @@ Only the selected executable path, the one-time warning acknowledgement, and the
 
 ## Tests
 
-The SwiftPM XCTest suite covers clipboard history, recent clears, copied-file decoding and fallback behavior, filename disambiguation, version formatting, and line-based diff behavior:
+The SwiftPM XCTest suite covers clipboard history, privacy-marker payload
+exclusion, recent clears, copied-file decoding and fallback behavior, filename
+disambiguation, version formatting, and line-based diff behavior:
 
 ```sh
 swift test
