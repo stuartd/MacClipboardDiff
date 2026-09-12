@@ -10,11 +10,6 @@ source of truth. The reviewed revisions are macOS
 `fc96fffd867e889c8926aa4f2186fb7f7bd82d14` and Windows
 `5f9230ab8fec8da76f82e3140e7b913b251704b6`.
 
-> **Follow-up status:** the P0 privacy-marker gap identified below has since been
-> addressed. The current macOS clipboard store rejects concealed and transient
-> pasteboards before reading their text or file URLs. The historical comparison
-> is retained to explain the reason for the change.
-
 The two products now have unusually close core parity. Both keep two captures in
 memory, ignore unsupported clipboard changes, accept identical consecutive
 copies, remove a recently captured value after an explicit clear, support one or
@@ -30,9 +25,10 @@ viewer catalog should remain native.
 
 ## Executive findings
 
-1. **At the reviewed baseline, the most important macOS gap was privacy-intent
-   screening before payload reads.** The follow-up implementation now checks
-   concealed/transient markers before it reads either text or file paths.
+1. **The most important macOS gap is privacy-intent screening before payload
+   reads.** Windows checks advisory exclusion formats before it reads either text
+   or file paths; macOS immediately asks the pasteboard for file URLs and then
+   text.
 2. **The clearest workflow gap on macOS is the missing one-file Finder action.**
    Windows can compare a selected file with the current capture; macOS Finder
    integration only accepts exactly two selected files.
@@ -54,7 +50,7 @@ viewer catalog should remain native.
 | Future-only, two-entry in-memory history | Yes: startup `changeCount` baseline and two-entry truncation (`clipdiff/ClipDiffController.swift:50`; `clipdiff/ClipboardHistory.swift:114-126`) | Yes: startup sequence baseline and bounded history (`src/ClipDiff.Core/ClipboardHistory.cs:14-19,165-181`) | Parity |
 | Pause/resume without importing clipboard contents copied while paused | Yes (`clipdiff/ClipDiffController.swift:105-120`) | Yes (`src/ClipDiff.Windows/AppController.cs:152-160`) | Parity |
 | Recent explicit-clear heuristic | Yes, 60 seconds (`clipdiff/ClipboardHistory.swift:3-4,141-153`) | Yes, 60 seconds (`src/ClipDiff.Core/ClipboardHistory.cs:3-5,241-254`) | Parity |
-| Clipboard privacy-intent markers checked before payload | Yes after follow-up: concealed/transient marker names are inspected before either payload accessor (`clipdiff/ClipboardStore.swift`) | Yes: exclusion/history/cloud markers precede file/text reads (`src/ClipDiff.Windows/Clipboard/ClipboardPrivacyInspector.cs:43-94`) | Parity at the advisory-policy level |
+| Clipboard privacy-intent markers checked before payload | No: file URLs/text are read directly (`clipdiff/ClipboardStore.swift:21-48`) | Yes: exclusion/history/cloud markers precede file/text reads (`src/ClipDiff.Windows/Clipboard/ClipboardPrivacyInspector.cs:43-94`) | **Windows-only; high-value macOS gap** |
 | App's own copied diff excluded from capture | Yes: change count is baselined and an `ownWrite` observation is applied (`clipdiff/ClipDiffController.swift:270-285`) | Yes, with native exclusion markers and own-write suppression (`src/ClipDiff.Windows/AppController.cs:475-491`) | Functional parity; Windows conveys stronger intent to other monitors |
 | One/two copied files, maximum 16 MiB, text/binary fallback | Yes (`clipdiff/ClipDiffController.swift:344-365`; `clipdiff/CopiedFileTextReader.swift`) | Yes (`src/ClipDiff.Windows/Clipboard/CopiedFileTextReader.cs`) | Parity |
 | Exactly-two-file context action | Yes, Finder Sync (`ClipDiffFinderSync/FinderSyncExtension.swift:18-40,70-80`) | Yes, Explorer Shell extension (`src/ClipDiff.ShellExtension/ShellExtension.cpp`) | Parity at user level |
@@ -70,7 +66,7 @@ viewer catalog should remain native.
 
 ## Features present on Windows but absent on macOS
 
-### W1 — Privacy-intent formats before any payload read (addressed)
+### W1 — Privacy-intent formats before any payload read
 
 Windows first checks whether formats exist, then checks its monitor/history/cloud
 exclusion formats, and only after that asks for file paths or Unicode text
@@ -78,10 +74,10 @@ exclusion formats, and only after that asks for file paths or Unicode text
 conservatively (`ClipboardPrivacyInspector.cs:102-110`). Its tests isolate this
 policy in `ClipboardPrivacyInspectorTests.cs`.
 
-At the reviewed revision, the macOS store instead invoked `readObjects` for file
-URLs before inspecting any other type, then called `string(forType:)`. The
-follow-up implementation introduces a metadata-first boundary and tests that
-neither payload accessor is invoked for concealed or transient pasteboards.
+The macOS store instead invokes `readObjects` for file URLs before inspecting any
+other type, then calls `string(forType:)` (`ClipboardStore.swift:21-48`). Thus it
+has no equivalent policy boundary where common macOS pasteboard privacy-intent
+types can be rejected without materializing the payload.
 
 **Recommendation:** add a pure, testable pasteboard privacy policy ahead of both
 file and string reads. Recognize the macOS ecosystem's transient/concealed (and,
@@ -176,7 +172,7 @@ actual retention, describe this as hardening rather than a privacy defect.
 
 | Priority | Target | Recommendation | Why now / acceptance boundary |
 | --- | --- | --- | --- |
-| **Completed** | macOS | Screen supported transient/concealed privacy-intent pasteboard types before reading file URLs or text. | Implemented with payload-access fakes proving excluded text and file URLs are not read. |
+| **P0** | macOS | Screen supported transient/concealed privacy-intent pasteboard types before reading file URLs or text. | Directly strengthens the stated privacy model. Unit-test marker precedence, malformed/ambiguous observations, history preservation, and recent-clear cancellation. Never inspect excluded payloads. |
 | **P1** | macOS | Threat-model and, if retention is demonstrated, replace the full-path custom-URL Finder handoff with authenticated ephemeral IPC. | Paths are sensitive metadata. Preserve cold-start behavior only if it can be achieved without durable path storage. |
 | **P2** | macOS | Add **Compare with current ClipDiff capture** for one regular Finder file. | High workflow value and established Windows behavior, but state signalling must not compromise privacy or make the small app into a service. |
 | **P3** | Windows | Allow explicit two-file Explorer comparisons while clipboard monitoring is paused, or clarify that Pause is a global privacy switch. | Improves semantic clarity; no effect on macOS implementation. |
@@ -185,13 +181,15 @@ actual retention, describe this as hardening rather than a privacy defect.
 
 ## Suggested macOS sequencing (no application changes in this report)
 
-1. Keep the completed pasteboard-marker policy covered by payload-access tests
-   and include it in manual privacy checks.
-2. Instrument the Finder request transport with synthetic, non-sensitive paths;
+1. Add a pasteboard metadata abstraction and policy tests without changing the
+   history or UI.
+2. Apply that policy before `readObjects`/`string(forType:)`, then update the
+   privacy documentation and manual checks.
+3. Instrument the Finder request transport with synthetic, non-sensitive paths;
    do not log real selected paths. Decide whether replacement IPC is necessary.
-3. Design the one-file Finder action around an in-memory current capture and
+4. Design the one-file Finder action around an in-memory current capture and
    revalidation after asynchronous reads. Keep the existing two-entry model.
-4. Run `swift test`, build a local Release app, and perform the privacy, paused
+5. Run `swift test`, build a local Release app, and perform the privacy, paused
    monitoring, copied-file, Finder, external-viewer, and clear-history smoke tests
    on macOS before shipping.
 
