@@ -50,7 +50,29 @@ nonisolated struct CopiedFileTextReader: Sendable {
         }
     }
 
+    /// Resolves a plain-text clipboard value as a file only when it is an
+    /// absolute path to a readable, non-empty text file. Invalid paths remain
+    /// ordinary clipboard text rather than becoming file fallback entries.
+    func readValue(fromFullyQualifiedPath path: String) async -> CopiedFileText? {
+        guard NSString(string: path).isAbsolutePath else { return nil }
+
+        let fileURL = URL(fileURLWithPath: path)
+        let readTask = Task.detached(priority: .userInitiated) {
+            readFile(at: fileURL, usesFallback: false)
+        }
+
+        return await withTaskCancellationHandler {
+            await readTask.value
+        } onCancel: {
+            readTask.cancel()
+        }
+    }
+
     func readFile(at fileURL: URL) -> CopiedFileText? {
+        readFile(at: fileURL, usesFallback: true)
+    }
+
+    private func readFile(at fileURL: URL, usesFallback: Bool) -> CopiedFileText? {
         guard !Task.isCancelled, fileURL.isFileURL else { return nil }
 
         let standardizedURL = fileURL.standardizedFileURL
@@ -69,19 +91,39 @@ nonisolated struct CopiedFileTextReader: Sendable {
 
         var isDirectory: ObjCBool = false
         guard FileManager.default.fileExists(atPath: path, isDirectory: &isDirectory) else {
-            return fallback(fileName: fileName, filePath: path, reason: "file not found")
+            return invalidFile(
+                fileName: fileName,
+                filePath: path,
+                reason: "file not found",
+                usesFallback: usesFallback
+            )
         }
 
         if isDirectory.boolValue {
-            return fallback(fileName: fileName, filePath: path, reason: "directory")
+            return invalidFile(
+                fileName: fileName,
+                filePath: path,
+                reason: "directory",
+                usesFallback: usesFallback
+            )
         }
 
         if Self.knownBinaryExtensions.contains(standardizedURL.pathExtension.lowercased()) {
-            return fallback(fileName: fileName, filePath: path, reason: "binary file")
+            return invalidFile(
+                fileName: fileName,
+                filePath: path,
+                reason: "binary file",
+                usesFallback: usesFallback
+            )
         }
 
         guard FileManager.default.isReadableFile(atPath: path) else {
-            return fallback(fileName: fileName, filePath: path, reason: "file unreadable")
+            return invalidFile(
+                fileName: fileName,
+                filePath: path,
+                reason: "file unreadable",
+                usesFallback: usesFallback
+            )
         }
 
         do {
@@ -89,27 +131,57 @@ nonisolated struct CopiedFileTextReader: Sendable {
             let fileSize = (attributes[.size] as? NSNumber)?.intValue ?? 0
 
             if fileSize == 0 {
-                return fallback(fileName: fileName, filePath: path, reason: "empty file")
+                return invalidFile(
+                    fileName: fileName,
+                    filePath: path,
+                    reason: "empty file",
+                    usesFallback: usesFallback
+                )
             }
 
             if fileSize > maximumTextFileBytes {
-                return fallback(fileName: fileName, filePath: path, reason: "file too large")
+                return invalidFile(
+                    fileName: fileName,
+                    filePath: path,
+                    reason: "file too large",
+                    usesFallback: usesFallback
+                )
             }
 
             guard !Task.isCancelled else { return nil }
             let data = try Data(contentsOf: standardizedURL, options: .mappedIfSafe)
             guard !Task.isCancelled else { return nil }
             guard !data.isEmpty else {
-                return fallback(fileName: fileName, filePath: path, reason: "empty file")
+                return invalidFile(
+                    fileName: fileName,
+                    filePath: path,
+                    reason: "empty file",
+                    usesFallback: usesFallback
+                )
             }
             guard data.count <= maximumTextFileBytes else {
-                return fallback(fileName: fileName, filePath: path, reason: "file too large")
+                return invalidFile(
+                    fileName: fileName,
+                    filePath: path,
+                    reason: "file too large",
+                    usesFallback: usesFallback
+                )
             }
             guard let text = decodeText(data) else {
-                return fallback(fileName: fileName, filePath: path, reason: "binary file")
+                return invalidFile(
+                    fileName: fileName,
+                    filePath: path,
+                    reason: "binary file",
+                    usesFallback: usesFallback
+                )
             }
             guard !text.isEmpty else {
-                return fallback(fileName: fileName, filePath: path, reason: "empty file")
+                return invalidFile(
+                    fileName: fileName,
+                    filePath: path,
+                    reason: "empty file",
+                    usesFallback: usesFallback
+                )
             }
 
             return CopiedFileText(text: text, fileName: fileName, filePath: path)
@@ -117,8 +189,23 @@ nonisolated struct CopiedFileTextReader: Sendable {
             let reason = FileManager.default.fileExists(atPath: path)
                 ? "file unreadable"
                 : "file not found"
-            return fallback(fileName: fileName, filePath: path, reason: reason)
+            return invalidFile(
+                fileName: fileName,
+                filePath: path,
+                reason: reason,
+                usesFallback: usesFallback
+            )
         }
+    }
+
+    private func invalidFile(
+        fileName: String,
+        filePath: String,
+        reason: String,
+        usesFallback: Bool
+    ) -> CopiedFileText? {
+        guard usesFallback else { return nil }
+        return fallback(fileName: fileName, filePath: filePath, reason: reason)
     }
 
     private func decodeText(_ data: Data) -> String? {
