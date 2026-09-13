@@ -98,8 +98,14 @@ enum ExternalDiffToolCatalog {
             bundleIdentifiers: ["com.ScooterSoftware.BeyondCompare", "com.scootersoftware.BeyondCompare"],
             bundledExecutablePaths: ["Contents/MacOS/bcomp"],
             knownExecutablePaths: standardCommandPaths("bcomp") + standardCommandPaths("bcompare"),
-            argumentBuilder: { previous, current, _, _ in
-                ["-readonly", previous, current]
+            argumentBuilder: { previous, current, previousLabel, currentLabel in
+                [
+                    "-readonly",
+                    "-lefttitle=\(previousLabel)",
+                    "-righttitle=\(currentLabel)",
+                    previous,
+                    current
+                ]
             }
         ),
         ExternalDiffTool(
@@ -176,7 +182,14 @@ enum ExternalDiffToolCatalog {
             bundleIdentifiers: ["org.gnome.meld"],
             bundledExecutablePaths: ["Contents/MacOS/meld"],
             knownExecutablePaths: standardCommandPaths("meld"),
-            argumentBuilder: positionalArguments
+            argumentBuilder: { previous, current, previousLabel, currentLabel in
+                [
+                    "--label", previousLabel,
+                    "--label", currentLabel,
+                    previous,
+                    current
+                ]
+            }
         ),
         ExternalDiffTool(
             id: "p4merge",
@@ -254,6 +267,8 @@ enum ExternalDiffToolCatalog {
             bundledExecutablePaths: bundledExecutablePaths,
             knownExecutablePaths: standardCommandPaths(executableName),
             argumentBuilder: { previous, current, _, _ in
+                // The Code CLI's --diff accepts file paths, but no per-side
+                // display titles. Keep labels out of its positional arguments.
                 ["--diff", "--wait", previous, current]
             }
         )

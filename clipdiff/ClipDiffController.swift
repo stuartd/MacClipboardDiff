@@ -92,13 +92,6 @@ final class ClipDiffController: ObservableObject {
         history.previousEntry
     }
 
-    var fileLabels: ClipboardFileLabels {
-        ClipboardEntryDisplay.resolveFileLabels(
-            previous: previousEntry,
-            current: currentEntry
-        )
-    }
-
     var canDiff: Bool {
         history.canDiff
     }
@@ -121,10 +114,6 @@ final class ClipDiffController: ObservableObject {
                 history.pause()
             }
         }
-    }
-
-    var statusText: String {
-        history.statusText
     }
 
     var selectedExternalDiffTool: ExternalDiffToolChoice? {

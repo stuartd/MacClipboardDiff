@@ -40,7 +40,7 @@ An unusable file contributes its filename followed by a reason:
 - `(file unreadable)`
 - `(file too large)`
 
-The source filename is shown in menu previews, side-by-side headings, and unified diff headers. When both files have the same basename, MacClipboardDiff adds only enough parent directories to distinguish them, such as `branch-a/Sources/settings.json` and `branch-b/Sources/settings.json`.
+The source filename is shown in side-by-side headings and unified diff headers. When both files have the same basename, MacClipboardDiff adds only enough parent directories to distinguish them, such as `branch-a/Sources/settings.json` and `branch-b/Sources/settings.json`.
 
 The full standardized file path is retained only with the corresponding in-memory history entry. A generated diff keeps its resolved display label but drops the full path. File contents and paths are never logged, uploaded, indexed, or persisted.
 
@@ -82,6 +82,8 @@ The app checks Launch Services, `/Applications`, `~/Applications`, common Homebr
 
 Known profiles use their supported wait, read-only, diff, and side-label options. File-backed captures preserve their basenames in separate **Previous** and **Current** directories, while viewers with title support receive the same disambiguated labels as the built-in diff.
 
+ClipDiff supplies those labels to Beyond Compare, Araxis Merge, KDiff3, Meld, and SourceGear DiffMerge. For example, two files named `README.md` can appear as **Previous clipboard — old/README.md** and **Current clipboard — new/README.md**. These viewers still read temporary copies of the captured text; the labels describe the original sources. VS Code and Cursor's command-line diff integration does not accept custom side titles, so they may display the temporary paths. Other viewer profiles preserve the source basenames where available and let the viewer choose how to display them.
+
 The local build is not App Sandbox-restricted because it must start the explicitly selected external executable. The app remains dependency-free and does not add network access or broaden its clipboard and copied-file workflow.
 
 ## Diff View
@@ -120,3 +122,5 @@ swift test
 ```
 
 For Finder changes, also build the app and extension on macOS with `scripts/create-local-release.sh`, then smoke-test one-file captured-text/captured-file comparisons, the visible no-capture message, paused monitoring, unchanged clipboard, same-basename labels, unsupported selections, two-file cold start, and external-viewer warning/fallback.
+
+For external-viewer labels, compare two files with the same basename in different folders in Beyond Compare or Meld. Confirm the panes show the shortest distinguishing source labels, including names containing spaces or Unicode. Also check plain-text captures still show **Previous clipboard** and **Current clipboard**.

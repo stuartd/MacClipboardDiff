@@ -5,23 +5,14 @@ struct MenuContentView: View {
     @ObservedObject var controller: ClipDiffController
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            statusHeader
-
-            Divider()
-
-            clipboardPreview
-
-            Divider()
-
+        Group {
+            // AppKit dims its native shortcut column even for enabled commands.
+            // Keep the hint in the label so both share the same enabled styling;
+            // HotKeyController handles the global shortcut independently.
             showDiffButton(
                 title: controller.isGlobalShortcutAvailable
-                    ? "Show Diff"
+                    ? "Show Diff  \(controller.globalShortcut.displayString)"
                     : "Show Diff (shortcut unavailable)"
-            )
-            .clipDiffKeyboardShortcut(
-                controller.globalShortcut,
-                enabled: controller.isGlobalShortcutAvailable
             )
 
             Button {
@@ -59,6 +50,13 @@ struct MenuContentView: View {
             }
             .disabled(controller.entries.isEmpty)
 
+            if let lastError = controller.lastError {
+                Text(lastError)
+                    .font(.caption)
+                    .foregroundStyle(.red)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
             Divider()
 
             Button {
@@ -73,40 +71,6 @@ struct MenuContentView: View {
                 Label("Quit ClipDiff", systemImage: "xmark.circle")
             }
             .keyboardShortcut("q")
-        }
-        .padding(12)
-        .frame(width: 320, alignment: .leading)
-    }
-
-    private var statusHeader: some View {
-        HStack(spacing: 8) {
-            Image(systemName: controller.canDiff ? "checkmark.circle.fill" : "clock")
-                .foregroundStyle(controller.canDiff ? .green : .secondary)
-
-            Text(controller.statusText)
-                .font(.headline)
-        }
-    }
-
-    private var clipboardPreview: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            EntryPreviewView(
-                title: "Current",
-                entry: controller.currentEntry,
-                fileLabel: controller.fileLabels.current
-            )
-            EntryPreviewView(
-                title: "Previous",
-                entry: controller.previousEntry,
-                fileLabel: controller.fileLabels.previous
-            )
-
-            if let lastError = controller.lastError {
-                Text(lastError)
-                    .font(.caption)
-                    .foregroundStyle(.red)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
         }
     }
 
@@ -163,63 +127,6 @@ struct MenuContentView: View {
             Label(title, systemImage: "checkmark")
         } else {
             Text(title)
-        }
-    }
-}
-
-private extension View {
-    @ViewBuilder
-    func clipDiffKeyboardShortcut(
-        _ shortcut: GlobalShortcut,
-        enabled: Bool
-    ) -> some View {
-        if enabled, let character = shortcut.keyLabel.lowercased().first {
-            keyboardShortcut(
-                KeyEquivalent(character),
-                modifiers: shortcut.swiftUIEventModifiers
-            )
-        } else {
-            self
-        }
-    }
-}
-
-private extension GlobalShortcut {
-    var swiftUIEventModifiers: EventModifiers {
-        var result: EventModifiers = []
-        if modifiers.contains(.command) { result.insert(.command) }
-        if modifiers.contains(.option) { result.insert(.option) }
-        if modifiers.contains(.control) { result.insert(.control) }
-        if modifiers.contains(.shift) { result.insert(.shift) }
-        return result
-    }
-}
-
-private struct EntryPreviewView: View {
-    let title: String
-    let entry: ClipboardEntry?
-    let fileLabel: String?
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 3) {
-            Text(title)
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(.secondary)
-
-            if let entry {
-                Text(entry.displayPreview(fileLabel: fileLabel))
-                    .font(.caption)
-                    .lineLimit(2)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-
-                Text("\(entry.lineCount) lines, \(entry.characterCount) characters")
-                    .font(.caption2)
-                    .foregroundStyle(.tertiary)
-            } else {
-                Text("None")
-                    .font(.caption)
-                    .foregroundStyle(.tertiary)
-            }
         }
     }
 }
