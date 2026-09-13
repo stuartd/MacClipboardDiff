@@ -23,7 +23,6 @@ let package = Package(
                 "DiffWindowController.swift",
                 "DiffWindowView.swift",
                 "ExternalDiffToolDiscovery.swift",
-                "HotKeyController.swift",
                 "MenuContentView.swift",
                 "ShortcutSettingsWindowController.swift"
             ],
@@ -41,7 +40,9 @@ let package = Package(
                 "ExternalDiffWorkspace.swift",
                 "FinderComparisonRequest.swift",
                 "FinderSingleFileRequestState.swift",
-                "GlobalShortcut.swift"
+                "GlobalShortcut.swift",
+                "GlobalShortcutValidator.swift",
+                "HotKeyController.swift"
             ]
         ),
         .testTarget(

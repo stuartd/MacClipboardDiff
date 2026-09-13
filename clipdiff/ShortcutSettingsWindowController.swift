@@ -9,7 +9,7 @@ final class ShortcutSettingsWindowController: NSWindowController, NSWindowDelega
         self.controller = controller
 
         let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 430, height: 230),
+            contentRect: NSRect(x: 0, y: 0, width: 430, height: 260),
             styleMask: [.titled, .closable],
             backing: .buffered,
             defer: false
@@ -32,12 +32,14 @@ final class ShortcutSettingsWindowController: NSWindowController, NSWindowDelega
         window.contentView = NSHostingView(
             rootView: ShortcutSettingsView(
                 initialShortcut: controller.globalShortcut,
+                validate: { [controller] in controller.shortcutValidationError($0) },
                 save: { [weak self] shortcut in
-                    guard let self, self.controller.setGlobalShortcut(shortcut) else {
-                        return false
+                    guard let self else { return .unavailable }
+                    if let error = self.controller.setGlobalShortcut(shortcut) {
+                        return error
                     }
                     self.close()
-                    return true
+                    return nil
                 },
                 cancel: { [weak self] in
                     self?.close()
@@ -51,16 +53,20 @@ final class ShortcutSettingsWindowController: NSWindowController, NSWindowDelega
 
 private struct ShortcutSettingsView: View {
     @State private var shortcut: GlobalShortcut
-    @State private var saveError: String?
-    let save: (GlobalShortcut) -> Bool
+    @State private var validationError: GlobalShortcutError?
+    @State private var saveError: GlobalShortcutError?
+    let validate: (GlobalShortcut) -> GlobalShortcutError?
+    let save: (GlobalShortcut) -> GlobalShortcutError?
     let cancel: () -> Void
 
     init(
         initialShortcut: GlobalShortcut,
-        save: @escaping (GlobalShortcut) -> Bool,
+        validate: @escaping (GlobalShortcut) -> GlobalShortcutError?,
+        save: @escaping (GlobalShortcut) -> GlobalShortcutError?,
         cancel: @escaping () -> Void
     ) {
         _shortcut = State(initialValue: initialShortcut)
+        self.validate = validate
         self.save = save
         self.cancel = cancel
     }
@@ -73,9 +79,9 @@ private struct ShortcutSettingsView: View {
             ShortcutRecorderView(shortcut: $shortcut)
                 .frame(height: 52)
 
-            Text(saveError ?? "Press a letter, number, or punctuation key with ⌘, ⌥, or ⌃.")
-                .font(.caption)
-                .foregroundStyle(saveError == nil ? Color.secondary : Color.red)
+            Text((validationError ?? saveError)?.message ?? "Hold Command, Option or Control, then press a letter, number or punctuation key. You can add Shift too.")
+                .font(.system(size: 14))
+                .foregroundStyle(validationError == nil && saveError == nil ? Color.primary : Color.red)
                 .fixedSize(horizontal: false, vertical: true)
 
             Spacer(minLength: 0)
@@ -83,6 +89,7 @@ private struct ShortcutSettingsView: View {
             HStack {
                 Button("Use Default") {
                     shortcut = .defaultShortcut
+                    validationError = validate(shortcut)
                     saveError = nil
                 }
 
@@ -92,15 +99,21 @@ private struct ShortcutSettingsView: View {
                     .keyboardShortcut(.cancelAction)
 
                 Button("Save") {
-                    if !save(shortcut) {
-                        saveError = "That shortcut is already in use. Choose another one."
-                    }
+                    saveError = save(shortcut)
                 }
                 .keyboardShortcut(.defaultAction)
+                .disabled(validationError != nil)
             }
         }
         .padding(20)
-        .frame(width: 430, height: 230)
+        .frame(width: 430, height: 260)
+        .onAppear {
+            validationError = validate(shortcut)
+        }
+        .onChange(of: shortcut) { newShortcut in
+            validationError = validate(newShortcut)
+            saveError = nil
+        }
     }
 }
 
@@ -190,19 +203,25 @@ private final class RecorderView: NSView {
         path.lineWidth = window?.firstResponder === self ? 2 : 1
         path.stroke()
 
-        let text = shortcut.displayString as NSString
+        // Measure each key separately so wide modifier glyphs have a real gap.
+        let keys = shortcut.displayString.map { String($0) as NSString }
         let attributes: [NSAttributedString.Key: Any] = [
-            .font: NSFont.monospacedSystemFont(ofSize: 22, weight: .medium),
+            .font: NSFont.systemFont(ofSize: 22, weight: .medium),
             .foregroundColor: NSColor.labelColor
         ]
-        let size = text.size(withAttributes: attributes)
-        text.draw(
-            at: NSPoint(
-                x: floor((self.bounds.width - size.width) / 2),
-                y: floor((self.bounds.height - size.height) / 2)
-            ),
-            withAttributes: attributes
-        )
+        let sizes = keys.map { $0.size(withAttributes: attributes) }
+        let spacing: CGFloat = 10
+        let totalWidth = sizes.reduce(0) { $0 + $1.width }
+            + spacing * CGFloat(max(0, keys.count - 1))
+        var x = floor((self.bounds.width - totalWidth) / 2)
+
+        for (key, size) in zip(keys, sizes) {
+            key.draw(
+                at: NSPoint(x: x, y: floor((self.bounds.height - size.height) / 2)),
+                withAttributes: attributes
+            )
+            x += size.width + spacing
+        }
     }
 
     private func capture(_ event: NSEvent) -> Bool {

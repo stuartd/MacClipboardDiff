@@ -4,63 +4,88 @@ import Foundation
 private let clipDiffHotKeySignature: OSType = 0x434C4446
 private let clipDiffHotKeyID: UInt32 = 1
 
+protocol HotKeyBackend: AnyObject {
+    func installEventHandler(action: @escaping () -> Void) -> OSStatus
+    func register(_ shortcut: GlobalShortcut) -> Result<EventHotKeyRef, GlobalShortcutError>
+    func unregister(_ reference: EventHotKeyRef)
+}
+
 final class HotKeyController {
-    private var eventHandler: EventHandlerRef?
+    private let backend: HotKeyBackend
     private var hotKeyRef: EventHotKeyRef?
-    private let action: () -> Void
+    private let eventHandlerStatus: OSStatus
 
-    private(set) var isRegistered = false
+    var isRegistered: Bool { hotKeyRef != nil }
     private(set) var registeredShortcut: GlobalShortcut?
+    private(set) var lastError: GlobalShortcutError?
 
-    init(shortcut: GlobalShortcut, action: @escaping () -> Void) {
-        self.action = action
-        installEventHandler()
-        isRegistered = registerHotKey(shortcut)
-        if isRegistered {
-            registeredShortcut = shortcut
-        }
+    init(
+        shortcut: GlobalShortcut,
+        backend: HotKeyBackend = CarbonHotKeyBackend(),
+        action: @escaping () -> Void
+    ) {
+        self.backend = backend
+        eventHandlerStatus = backend.installEventHandler(action: action)
+        updateShortcut(shortcut)
     }
 
     deinit {
-        unregisterHotKey()
-        if let eventHandler {
-            RemoveEventHandler(eventHandler)
+        if let hotKeyRef {
+            backend.unregister(hotKeyRef)
         }
     }
 
     @discardableResult
     func updateShortcut(_ shortcut: GlobalShortcut) -> Bool {
-        let previousShortcut = registeredShortcut
-        unregisterHotKey()
-
-        if registerHotKey(shortcut) {
-            registeredShortcut = shortcut
-            isRegistered = true
+        guard eventHandlerStatus == noErr else {
+            lastError = .eventHandlerFailed(eventHandlerStatus)
+            return false
+        }
+        if registeredShortcut == shortcut {
+            lastError = nil
             return true
         }
 
-        if let previousShortcut, registerHotKey(previousShortcut) {
-            registeredShortcut = previousShortcut
-            isRegistered = true
-        } else {
-            registeredShortcut = nil
-            isRegistered = false
+        // Keep the old registration until macOS accepts its replacement.
+        switch backend.register(shortcut) {
+        case .success(let reference):
+            if let hotKeyRef {
+                backend.unregister(hotKeyRef)
+            }
+            hotKeyRef = reference
+            registeredShortcut = shortcut
+            lastError = nil
+            return true
+        case .failure(let error):
+            lastError = error
+            return false
         }
-        return false
+    }
+}
+
+final class CarbonHotKeyBackend: HotKeyBackend {
+    private var eventHandler: EventHandlerRef?
+    private var action: (() -> Void)?
+
+    deinit {
+        if let eventHandler {
+            RemoveEventHandler(eventHandler)
+        }
     }
 
-    private func installEventHandler() {
+    func installEventHandler(action: @escaping () -> Void) -> OSStatus {
+        self.action = action
         var eventType = EventTypeSpec(
             eventClass: OSType(kEventClassKeyboard),
             eventKind: UInt32(kEventHotKeyPressed)
         )
 
-        InstallEventHandler(
+        return InstallEventHandler(
             GetApplicationEventTarget(),
             { _, event, userData in
                 guard let event, let userData else { return noErr }
 
-                let controller = Unmanaged<HotKeyController>
+                let backend = Unmanaged<CarbonHotKeyBackend>
                     .fromOpaque(userData)
                     .takeUnretainedValue()
 
@@ -81,7 +106,7 @@ final class HotKeyController {
                     return noErr
                 }
 
-                controller.action()
+                backend.action?()
                 return noErr
             },
             1,
@@ -91,40 +116,29 @@ final class HotKeyController {
         )
     }
 
-    private func registerHotKey(_ shortcut: GlobalShortcut) -> Bool {
+    func register(_ shortcut: GlobalShortcut) -> Result<EventHotKeyRef, GlobalShortcutError> {
         let hotKeyID = EventHotKeyID(
             signature: clipDiffHotKeySignature,
             id: clipDiffHotKeyID
         )
 
+        var reference: EventHotKeyRef?
         let status = RegisterEventHotKey(
             shortcut.keyCode,
-            carbonModifiers(for: shortcut.modifiers),
+            shortcut.carbonModifiers,
             hotKeyID,
             GetApplicationEventTarget(),
-            0,
-            &hotKeyRef
+            OptionBits(kEventHotKeyExclusive),
+            &reference
         )
 
-        if status != noErr {
-            hotKeyRef = nil
+        guard status == noErr, let reference else {
+            return .failure(.registrationFailure(status == noErr ? OSStatus(eventInternalErr) : status))
         }
-        return status == noErr
+        return .success(reference)
     }
 
-    private func unregisterHotKey() {
-        if let hotKeyRef {
-            UnregisterEventHotKey(hotKeyRef)
-            self.hotKeyRef = nil
-        }
-    }
-
-    private func carbonModifiers(for modifiers: GlobalShortcut.Modifiers) -> UInt32 {
-        var result: UInt32 = 0
-        if modifiers.contains(.command) { result |= UInt32(cmdKey) }
-        if modifiers.contains(.option) { result |= UInt32(optionKey) }
-        if modifiers.contains(.control) { result |= UInt32(controlKey) }
-        if modifiers.contains(.shift) { result |= UInt32(shiftKey) }
-        return result
+    func unregister(_ reference: EventHotKeyRef) {
+        UnregisterEventHotKey(reference)
     }
 }

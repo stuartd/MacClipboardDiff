@@ -19,6 +19,8 @@ The app is copied to `releases/ClipDiff.app` and opened.
 
 You can also copy exactly two files together in Finder. ClipDiff immediately treats the first file as **Previous** and the second as **Current**.
 
+The shortcut recorder checks enabled macOS system shortcuts and ClipDiff’s own menu commands. It explains known conflicts and registration failures, and keeps the current shortcut active if a replacement fails. These checks cannot identify every shortcut used inside other apps.
+
 ## Finder Context Menu
 
 The app includes a Finder Sync extension. Choose **Enable Finder menu…** in the ClipDiff menu and enable **ClipDiff Finder Integration** in macOS System Settings. With exactly one regular file selected, Finder shows **Compare with current ClipDiff capture**. It reads the selected file only after invocation, moves the current in-memory capture to **Previous**, makes the selected file **Current**, and opens the configured viewer without changing the clipboard. This works while monitoring is paused if a capture remains. If there is no capture (including after a cold start), ClipDiff activates and explains that text or a file must first be copied while monitoring.

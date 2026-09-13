@@ -11,7 +11,7 @@ struct MenuContentView: View {
             // HotKeyController handles the global shortcut independently.
             showDiffButton(
                 title: controller.isGlobalShortcutAvailable
-                    ? "Show Diff  \(controller.globalShortcut.displayString)"
+                    ? "Show Diff  \(shortcutHint)"
                     : "Show Diff (shortcut unavailable)"
             )
 
@@ -72,6 +72,10 @@ struct MenuContentView: View {
             }
             .keyboardShortcut("q")
         }
+    }
+
+    private var shortcutHint: String {
+        controller.globalShortcut.displayString.map(String.init).joined(separator: "\u{2009}")
     }
 
     private func showDiffButton(title: String) -> some View {

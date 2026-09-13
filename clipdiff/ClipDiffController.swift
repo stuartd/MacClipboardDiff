@@ -16,6 +16,7 @@ final class ClipDiffController: ObservableObject {
     private let fileReader: CopiedFileTextReader
     private let history: ClipboardHistory
     private let globalShortcutSettingsStore: GlobalShortcutSettingsStore
+    private let globalShortcutValidator = GlobalShortcutValidator()
     private let externalDiffSettingsStore: ExternalDiffSettingsStore
     private let externalDiffLauncher: ExternalDiffLauncher
     private var externalDiffSettings: ExternalDiffSettings
@@ -60,6 +61,7 @@ final class ClipDiffController: ObservableObject {
         }
         self.hotKeyController = hotKeyController
         isGlobalShortcutAvailable = hotKeyController.isRegistered
+        lastError = hotKeyController.lastError?.message
 
         applicationWillTerminateObserver = NotificationCenter.default.addObserver(
             forName: NSApplication.willTerminateNotification,
@@ -183,19 +185,27 @@ final class ClipDiffController: ObservableObject {
     }
 
     @discardableResult
-    func setGlobalShortcut(_ shortcut: GlobalShortcut) -> Bool {
+    func setGlobalShortcut(_ shortcut: GlobalShortcut) -> GlobalShortcutError? {
+        if let error = shortcutValidationError(shortcut) {
+            return error
+        }
         guard hotKeyController?.updateShortcut(shortcut) == true else {
             isGlobalShortcutAvailable = hotKeyController?.isRegistered ?? false
-            lastError = "That keyboard shortcut is already in use."
+            let error = hotKeyController?.lastError ?? .unavailable
+            lastError = error.message
             NSSound.beep()
-            return false
+            return error
         }
 
         globalShortcut = shortcut
         globalShortcutSettingsStore.save(shortcut)
         isGlobalShortcutAvailable = true
         lastError = nil
-        return true
+        return nil
+    }
+
+    func shortcutValidationError(_ shortcut: GlobalShortcut) -> GlobalShortcutError? {
+        globalShortcutValidator.error(for: shortcut)
     }
 
     func showFinderIntegrationSettings() {
