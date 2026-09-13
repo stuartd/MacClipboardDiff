@@ -26,7 +26,7 @@ Keep it small. This is not an App Store product, not a cloud service, and not a 
 - `clipdiff/AppAbout.swift`: native About panel presentation.
 - `clipdiff/AppVersionFormatter.swift`: version/build/commit display formatting.
 - `clipdiff/Assets.xcassets/`: app icon and accent color assets.
-- `ClipDiffFinderSync/`: Finder Sync extension that offers a comparison command for exactly two selected regular files.
+- `ClipDiffFinderSync/`: Finder Sync extension that offers comparison commands for one or two selected regular files.
 - `ClipDiff-Info.plist`: generated bundle metadata inputs, including the release commit value.
 - `Package.swift`: SwiftPM manifest used for focused core tests.
 - `clipdiffTests/`: XCTest coverage for clipboard history and diff behavior.
@@ -91,7 +91,8 @@ Manual smoke test after changes:
 9. Copy exactly two text files together and verify their Finder order becomes previous/current.
 10. Copy a binary, empty, directory, and oversized file and verify the fallback reason.
 11. Change the global shortcut, verify the new shortcut works and the old one does not, then restore the default.
-12. Enable the Finder extension, select exactly two regular files, and verify **Compare two selected files with ClipDiff** opens their diff. Verify the command is absent for other selection counts and folders, and that non-text files use the bounded reader's fallback reason after the command is chosen.
+12. Enable the Finder extension, select one regular file, and verify **Compare with current ClipDiff capture** compares a retained capture as Previous with that file as Current without changing the clipboard. Check the visible no-capture message, paused monitoring, same-basename labels, and binary fallback.
+13. Select exactly two regular files and verify **Compare two selected files with ClipDiff** opens their diff, including on cold start. Verify both commands are absent for zero, more than two, folders, and special files, and check the external-viewer warning/fallback.
 
 For pure diff changes, verify added, removed, changed, unchanged, blank-line, and trailing-newline cases.
 

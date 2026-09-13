@@ -21,9 +21,9 @@ You can also copy exactly two files together in Finder. MacClipboardDiff immedia
 
 ## Finder Context Menu
 
-The app includes a Finder Sync extension. Choose **Enable Finder menu…** in the ClipDiff menu and enable **ClipDiff Finder Integration** in macOS System Settings. When exactly two regular files are selected, Finder shows **Compare two selected files with ClipDiff** in the contextual menu. Other selection counts and folders do not show the command.
+The app includes a Finder Sync extension. Choose **Enable Finder menu…** in the ClipDiff menu and enable **ClipDiff Finder Integration** in macOS System Settings. With exactly one regular file selected, Finder shows **Compare with current ClipDiff capture**. It reads the selected file only after invocation, moves the current in-memory capture to **Previous**, makes the selected file **Current**, and opens the configured viewer without changing the clipboard. This works while monitoring is paused if a capture remains. If there is no capture (including after a cold start), ClipDiff activates and explains that text or a file must first be copied while monitoring.
 
-Choosing the command opens ClipDiff if necessary, reads and classifies the pair with the same bounded decoder used for copied files, replaces the in-memory comparison pair, and immediately shows the diff. Binary and otherwise unusable files use the documented filename-and-reason fallback. The first Finder selection is **Previous** and the second is **Current**.
+With exactly two regular files selected, Finder shows **Compare two selected files with ClipDiff**. Choosing it opens ClipDiff if necessary, reads and classifies the pair, replaces the in-memory comparison pair, and immediately shows the diff; the first Finder selection is **Previous** and the second is **Current**. Binary and otherwise unusable files use the documented filename-and-reason fallback. Zero, more than two, or any folder/non-regular selection shows neither command.
 
 ## Copied Files
 
@@ -47,7 +47,7 @@ The full standardized file path is retained only with the corresponding in-memor
 ## Design
 
 - The app monitors `NSPasteboard.changeCount` and captures only future changes.
-- The optional Finder extension inspects selection metadata only to decide whether to show its command. File contents are read only after that command is chosen.
+- The optional Finder extension inspects selection metadata only to choose the one-file or two-file command. File contents are read only after that command is chosen; the app rechecks selection requests and asynchronous capture identity before committing.
 - Plain text and one or two copied file URLs are supported.
 - Separate copy events are captured even when their text is identical.
 - Unsupported non-text changes are ignored without clearing history.
@@ -118,3 +118,5 @@ disambiguation, version formatting, and line-based diff behavior:
 ```sh
 swift test
 ```
+
+For Finder changes, also build the app and extension on macOS with `scripts/create-local-release.sh`, then smoke-test one-file captured-text/captured-file comparisons, the visible no-capture message, paused monitoring, unchanged clipboard, same-basename labels, unsupported selections, two-file cold start, and external-viewer warning/fallback.

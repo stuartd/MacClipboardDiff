@@ -2,7 +2,8 @@ import AppKit
 import FinderSync
 
 final class FinderSyncExtension: FIFinderSync {
-    private static let menuTitle = "Compare two selected files with ClipDiff"
+    private static let pairMenuTitle = "Compare two selected files with ClipDiff"
+    private static let currentMenuTitle = "Compare with current ClipDiff capture"
 
     override init() {
         super.init()
@@ -18,13 +19,13 @@ final class FinderSyncExtension: FIFinderSync {
     override func menu(for menuKind: FIMenuKind) -> NSMenu? {
         guard menuKind == .contextualMenuForItems,
               let urls = FIFinderSyncController.default().selectedItemURLs(),
-              Self.isSupportedSelection(urls) else {
+              let operation = Self.operation(for: urls) else {
             return nil
         }
 
         let menu = NSMenu()
         let item = NSMenuItem(
-            title: Self.menuTitle,
+            title: operation == .compareWithCurrent ? Self.currentMenuTitle : Self.pairMenuTitle,
             action: #selector(compareSelectedFiles(_:)),
             keyEquivalent: ""
         )
@@ -35,7 +36,7 @@ final class FinderSyncExtension: FIFinderSync {
 
     @objc private func compareSelectedFiles(_ sender: NSMenuItem) {
         guard let urls = FIFinderSyncController.default().selectedItemURLs(),
-              Self.isSupportedSelection(urls) else {
+              let operation = Self.operation(for: urls) else {
             NSSound.beep()
             return
         }
@@ -44,7 +45,7 @@ final class FinderSyncExtension: FIFinderSync {
         configuration.activates = true
         configuration.addsToRecentItems = false
 
-        guard let requestURL = Self.comparisonRequestURL(for: urls) else {
+        guard let requestURL = Self.comparisonRequestURL(for: urls, operation: operation) else {
             NSSound.beep()
             return
         }
@@ -67,25 +68,31 @@ final class FinderSyncExtension: FIFinderSync {
             .deletingLastPathComponent()
     }
 
-    private static func isSupportedSelection(_ urls: [URL]) -> Bool {
-        guard urls.count == 2 else { return false }
+    private enum Operation: String {
+        case compareSelectedFiles = "compare-selected-files"
+        case compareWithCurrent = "compare-with-current"
+    }
 
-        return urls.allSatisfy { url in
+    private static func operation(for urls: [URL]) -> Operation? {
+        guard (1...2).contains(urls.count) else { return nil }
+
+        guard urls.allSatisfy({ url in
             guard url.isFileURL,
                   let values = try? url.resourceValues(forKeys: [.isRegularFileKey]),
                   values.isRegularFile == true else {
                 return false
             }
             return true
-        }
+        }) else { return nil }
+        return urls.count == 1 ? .compareWithCurrent : .compareSelectedFiles
     }
 
-    private static func comparisonRequestURL(for urls: [URL]) -> URL? {
-        guard urls.count == 2 else { return nil }
+    private static func comparisonRequestURL(for urls: [URL], operation: Operation) -> URL? {
+        guard urls.count == (operation == .compareWithCurrent ? 1 : 2) else { return nil }
 
         var components = URLComponents()
         components.scheme = "clipdiff"
-        components.host = "compare-selected-files"
+        components.host = operation.rawValue
         components.queryItems = urls.map {
             URLQueryItem(name: "file", value: $0.absoluteString)
         }

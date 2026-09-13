@@ -23,6 +23,7 @@ final class ClipDiffController: ObservableObject {
     private var pendingFileReadChangeCount: Int?
     private var pendingFileRead: Task<Void, Never>?
     private var pendingSelectedFileRead: Task<Void, Never>?
+    private var singleFileRequestState = FinderSingleFileRequestState()
     private var timer: Timer?
     private var diffWindowController: DiffWindowController?
     private var shortcutSettingsWindowController: ShortcutSettingsWindowController?
@@ -111,6 +112,7 @@ final class ClipDiffController: ObservableObject {
 
             objectWillChange.send()
             cancelPendingFileRead()
+            cancelPendingFinderRead()
             lastRequestedChangeCount = clipboard.changeCount
 
             if newValue {
@@ -219,7 +221,7 @@ final class ClipDiffController: ObservableObject {
         }
 
         cancelPendingFileRead()
-        pendingSelectedFileRead?.cancel()
+        cancelPendingFinderRead()
         lastRequestedChangeCount = clipboard.changeCount
         let fileReader = self.fileReader
 
@@ -227,6 +229,34 @@ final class ClipDiffController: ObservableObject {
             let values = await fileReader.readValues(from: fileURLs)
             guard !Task.isCancelled else { return }
             self?.finishSelectedFileRead(values)
+        }
+    }
+
+    func compareWithCurrentCapture(_ fileURL: URL) {
+        guard let capturedEntry = currentEntry else {
+            presentNoCurrentCaptureMessage()
+            return
+        }
+        guard Self.isRegularFile(fileURL) else {
+            lastError = "Choose one regular file to compare."
+            NSSound.beep()
+            return
+        }
+
+        cancelPendingFileRead()
+        cancelPendingFinderRead()
+        lastRequestedChangeCount = clipboard.changeCount
+        let token = singleFileRequestState.begin(
+            currentEntryID: capturedEntry.id,
+            pasteboardChangeCount: lastRequestedChangeCount,
+            isMonitoring: history.isMonitoring
+        )
+        let fileReader = self.fileReader
+
+        pendingSelectedFileRead = Task { [weak self] in
+            let values = await fileReader.readValues(from: [fileURL])
+            guard !Task.isCancelled else { return }
+            self?.finishSingleSelectedFileRead(values, token: token)
         }
     }
 
@@ -259,8 +289,7 @@ final class ClipDiffController: ObservableObject {
 
     func clearCapturedText() {
         cancelPendingFileRead()
-        pendingSelectedFileRead?.cancel()
-        pendingSelectedFileRead = nil
+        cancelPendingFinderRead()
         objectWillChange.send()
         history.clearCapturedText()
         activeDiff = nil
@@ -268,6 +297,7 @@ final class ClipDiffController: ObservableObject {
     }
 
     func copyActiveDiff() {
+        cancelPendingFinderRead()
         guard let activeDiff else {
             NSSound.beep()
             return
@@ -338,6 +368,7 @@ final class ClipDiffController: ObservableObject {
         guard changeCount != lastRequestedChangeCount else { return }
 
         let observedAt = Date()
+        cancelPendingFinderRead()
         supersedePendingFileRead(observedAt: observedAt)
         lastRequestedChangeCount = changeCount
 
@@ -460,6 +491,32 @@ final class ClipDiffController: ObservableObject {
         showDiff()
     }
 
+    private func finishSingleSelectedFileRead(
+        _ values: [CopiedFileText],
+        token: FinderSingleFileRequestState.Token
+    ) {
+        pendingSelectedFileRead = nil
+        guard values.count == 1,
+              singleFileRequestState.consumeIfValid(
+                token,
+                currentEntryID: currentEntry?.id,
+                pasteboardChangeCount: clipboard.changeCount,
+                isMonitoring: history.isMonitoring
+              ),
+              history.compareCurrentEntry(
+                expectedID: token.expectedCurrentEntryID,
+                with: values[0].capturedValue,
+                capturedAt: Date()
+              ) else {
+            return
+        }
+
+        activeDiff = nil
+        lastError = nil
+        objectWillChange.send()
+        showDiff()
+    }
+
     private func apply(_ observation: ClipboardObservation) {
         let change = history.apply(observation)
 
@@ -482,6 +539,34 @@ final class ClipDiffController: ObservableObject {
         pendingFileRead?.cancel()
         pendingFileRead = nil
         pendingFileReadChangeCount = nil
+    }
+
+    private func cancelPendingFinderRead() {
+        pendingSelectedFileRead?.cancel()
+        pendingSelectedFileRead = nil
+        singleFileRequestState.cancel()
+    }
+
+    private func presentNoCurrentCaptureMessage() {
+        cancelPendingFinderRead()
+        let message = "Copy some text or a file while ClipDiff is monitoring, then try again."
+        lastError = message
+        NSApplication.shared.activate(ignoringOtherApps: true)
+        let alert = NSAlert()
+        alert.messageText = message
+        alert.addButton(withTitle: "OK")
+        alert.runModal()
+    }
+
+    private static func isRegularFile(_ url: URL) -> Bool {
+        guard url.isFileURL else { return false }
+        guard let values = try? url.resourceValues(forKeys: [.isRegularFileKey]),
+              let isRegularFile = values.isRegularFile else {
+            // Let the bounded reader produce its normal "file not found" or
+            // "file unreadable" fallback when a selected file vanishes.
+            return true
+        }
+        return isRegularFile
     }
 
     private func supersedePendingFileRead(observedAt: Date) {
