@@ -1,6 +1,6 @@
-# MacClipboardDiff
+# ClipDiff
 
-MacClipboardDiff is a tiny macOS menu bar utility for comparing the last two copied text values or text files.
+ClipDiff is a tiny macOS menu bar utility for comparing the last two copied text values or text files.
 
 ## Run It
 
@@ -8,16 +8,16 @@ MacClipboardDiff is a tiny macOS menu bar utility for comparing the last two cop
 scripts/create-local-release.sh
 ```
 
-The app is copied to `releases/MacClipboardDiff.app` and opened.
+The app is copied to `releases/ClipDiff.app` and opened.
 
 ## Workflow
 
 1. Copy the older text or file.
 2. Copy the newer text or file.
-3. Press `Option-Command-D`, or choose **Show Diff** from the menu bar item. Choose **Keyboard shortcut** in that menu to record a different global shortcut.
+3. Press `Option-Command-D`, or choose **Show Diff** from the menu bar item. Choose **Change Keyboard Shortcut…** in that menu to record a different global shortcut.
 4. View the diff in the selected viewer. The built-in native window remains the default.
 
-You can also copy exactly two files together in Finder. MacClipboardDiff immediately treats the first file as **Previous** and the second as **Current**.
+You can also copy exactly two files together in Finder. ClipDiff immediately treats the first file as **Previous** and the second as **Current**.
 
 ## Finder Context Menu
 
@@ -29,7 +29,7 @@ With exactly two regular files selected, Finder shows **Compare two selected fil
 
 Finder file URLs take precedence over incidental path text on the pasteboard. A single copied file becomes one capture; exactly two copied files atomically replace the comparison pair; copies containing more than two files are ignored.
 
-For a usable text file, MacClipboardDiff reads and retains the complete decoded contents in memory. It supports UTF-8, BOM-marked UTF-16 and UTF-32, common BOM-less UTF-16, and Windows-1252. Files larger than 16 MiB are not read.
+For a usable text file, ClipDiff reads and retains the complete decoded contents in memory. It supports UTF-8, BOM-marked UTF-16 and UTF-32, common BOM-less UTF-16, and Windows-1252. Files larger than 16 MiB are not read.
 
 An unusable file contributes its filename followed by a reason:
 
@@ -40,7 +40,7 @@ An unusable file contributes its filename followed by a reason:
 - `(file unreadable)`
 - `(file too large)`
 
-The source filename is shown in side-by-side headings and unified diff headers. When both files have the same basename, MacClipboardDiff adds only enough parent directories to distinguish them, such as `branch-a/Sources/settings.json` and `branch-b/Sources/settings.json`.
+The source filename is shown in side-by-side headings and unified diff headers. When both files have the same basename, ClipDiff adds only enough parent directories to distinguish them, such as `branch-a/Sources/settings.json` and `branch-b/Sources/settings.json`.
 
 The full standardized file path is retained only with the corresponding in-memory history entry. A generated diff keeps its resolved display label but drops the full path. File contents and paths are never logged, uploaded, indexed, or persisted.
 
@@ -55,7 +55,7 @@ The full standardized file path is retained only with the corresponding in-memor
 - Captured content is kept in memory only and lost when the app exits.
 - Slow file reads are superseded if a newer pasteboard change arrives.
 - Clipboard items marked `org.nspasteboard.ConcealedType` or
-  `org.nspasteboard.TransientType` are ignored before MacClipboardDiff reads
+  `org.nspasteboard.TransientType` are ignored before ClipDiff reads
   either their text or file URLs. These advisory markers are commonly used by
   password managers and other privacy-conscious clipboard producers.
 - The built-in diff is native SwiftUI and never writes captured text to disk.
@@ -64,7 +64,7 @@ The full standardized file path is retained only with the corresponding in-memor
 
 The menu's **Diff viewer** submenu lists supported applications found on the Mac, provides **Choose Application…** for another app or executable, and lets you return to the built-in viewer. The selection is remembered.
 
-MacClipboardDiff recognizes these viewer profiles:
+ClipDiff recognizes these viewer profiles:
 
 - FileMerge
 - Kaleidoscope
@@ -99,15 +99,15 @@ There is also a unified view for copying or scanning a compact diff. Diff rows a
 
 ## Privacy Limitations
 
-The recent-clear behavior is only a heuristic. An unmarked secret is otherwise indistinguishable from ordinary text, and Swift strings cannot be guaranteed to be securely zeroed. Operating-system paging, process dumps, other clipboard monitors, and macOS clipboard behavior are outside MacClipboardDiff's control.
+The recent-clear behavior is only a heuristic. An unmarked secret is otherwise indistinguishable from ordinary text, and Swift strings cannot be guaranteed to be securely zeroed. Operating-system paging, process dumps, other clipboard monitors, and macOS clipboard behavior are outside ClipDiff's control.
 
 Concealed and transient pasteboard markers are advisory and depend on the source
-application providing them. MacClipboardDiff does not guess whether unmarked text
+application providing them. ClipDiff does not guess whether unmarked text
 is sensitive from its contents, length, or source application.
 
-The built-in viewer keeps the memory-only privacy model. Selecting an external viewer creates an explicit exception because another application cannot compare the captured strings directly. Before the first external comparison, MacClipboardDiff warns that clipboard text may contain secrets and asks for confirmation. Cancelling opens the built-in viewer and creates no files.
+The built-in viewer keeps the memory-only privacy model. Selecting an external viewer creates an explicit exception because another application cannot compare the captured strings directly. Before the first external comparison, ClipDiff warns that clipboard text may contain secrets and asks for confirmation. Cancelling opens the built-in viewer and creates no files.
 
-After confirmation, each comparison writes two read-only UTF-8 plaintext files to a unique directory below the system temporary directory. MacClipboardDiff attempts to delete that directory after the launched comparison process exits, when MacClipboardDiff exits, and on its next launch. Cleanup is best effort: a crash, power loss, open file handle, or external application may leave or retain a copy. Do not select an external viewer when that disk exposure is unacceptable.
+After confirmation, each comparison writes two read-only UTF-8 plaintext files to a unique directory below the system temporary directory. ClipDiff attempts to delete that directory after the launched comparison process exits, when ClipDiff exits, and on its next launch. Cleanup is best effort: a crash, power loss, open file handle, or external application may leave or retain a copy. Do not select an external viewer when that disk exposure is unacceptable.
 
 Only the selected executable path, the one-time warning acknowledgement, and the chosen global shortcut are stored in app preferences. Clipboard text, previews, diffs, and source paths are never stored there.
 
