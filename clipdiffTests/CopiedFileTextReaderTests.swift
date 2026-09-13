@@ -118,6 +118,38 @@ final class CopiedFileTextReaderTests: XCTestCase {
         XCTAssertTrue(values.isEmpty)
     }
 
+    func testFullyQualifiedClipboardPathLoadsValidTextFile() async throws {
+        let url = try write("clipboard.html", text: "<h1>Not found</h1>")
+
+        let value = await CopiedFileTextReader()
+            .readValue(fromFullyQualifiedPath: url.path)
+
+        XCTAssertEqual(value?.text, "<h1>Not found</h1>")
+        XCTAssertEqual(value?.fileName, "clipboard.html")
+        XCTAssertEqual(value?.filePath, url.standardizedFileURL.path)
+    }
+
+    func testClipboardPathOnlyResolvesWhenFileIsValidForDiff() async throws {
+        let relative = try write("relative.txt", text: "text")
+        let binary = try write("binary.txt", data: Data([0x00, 0x01, 0x02]))
+        let empty = try write("empty-path.txt", data: Data())
+
+        let reader = CopiedFileTextReader()
+        let relativeValue = await reader.readValue(
+            fromFullyQualifiedPath: relative.lastPathComponent
+        )
+        let binaryValue = await reader.readValue(fromFullyQualifiedPath: binary.path)
+        let emptyValue = await reader.readValue(fromFullyQualifiedPath: empty.path)
+        let missingValue = await reader.readValue(
+            fromFullyQualifiedPath: testDirectory.appendingPathComponent("missing.txt").path
+        )
+
+        XCTAssertNil(relativeValue)
+        XCTAssertNil(binaryValue)
+        XCTAssertNil(emptyValue)
+        XCTAssertNil(missingValue)
+    }
+
     private func write(_ name: String, text: String) throws -> URL {
         try write(name, data: Data(text.utf8))
     }

@@ -374,13 +374,7 @@ final class ClipDiffController: ObservableObject {
 
         switch clipboard.readSnapshot() {
         case .text(let text):
-            apply(
-                ClipboardObservation(
-                    changeCount: changeCount,
-                    observedAt: observedAt,
-                    content: .value(CapturedClipboardValue(text: text))
-                )
-            )
+            beginTextRead(text, changeCount: changeCount, observedAt: observedAt)
 
         case .fileURLs(let fileURLs):
             guard (1...2).contains(fileURLs.count) else {
@@ -413,6 +407,50 @@ final class ClipDiffController: ObservableObject {
                 )
             )
         }
+    }
+
+    private func beginTextRead(
+        _ text: String,
+        changeCount: Int,
+        observedAt: Date
+    ) {
+        pendingFileReadChangeCount = changeCount
+        let fileReader = self.fileReader
+
+        pendingFileRead = Task { [weak self] in
+            let fileValue = await fileReader.readValue(fromFullyQualifiedPath: text)
+            guard !Task.isCancelled else { return }
+            self?.finishTextRead(
+                text,
+                fileValue: fileValue,
+                changeCount: changeCount,
+                observedAt: observedAt
+            )
+        }
+    }
+
+    private func finishTextRead(
+        _ text: String,
+        fileValue: CopiedFileText?,
+        changeCount: Int,
+        observedAt: Date
+    ) {
+        guard pendingFileReadChangeCount == changeCount,
+              lastRequestedChangeCount == changeCount,
+              clipboard.changeCount == changeCount,
+              history.isMonitoring else {
+            return
+        }
+
+        pendingFileRead = nil
+        pendingFileReadChangeCount = nil
+        apply(
+            ClipboardObservation(
+                changeCount: changeCount,
+                observedAt: observedAt,
+                content: .value(fileValue?.capturedValue ?? CapturedClipboardValue(text: text))
+            )
+        )
     }
 
     private func beginFileRead(
