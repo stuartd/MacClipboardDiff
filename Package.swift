@@ -40,6 +40,7 @@ let package = Package(
                 "ExternalDiffTool.swift",
                 "ExternalDiffWorkspace.swift",
                 "FinderComparisonRequest.swift",
+                "FinderSingleFileRequestState.swift",
                 "GlobalShortcut.swift"
             ]
         ),

@@ -1,5 +1,9 @@
 # ClipDiff macOS/Windows feature-gap report
 
+## Implementation status — 12 September 2026
+
+The one-file Finder comparison described as gap W2 below is now implemented. Finder offers the action for one regular-file selection; the app uses its retained current capture, validates delayed reads against capture identity and clipboard/monitoring state, and preserves the existing viewer and privacy behavior. The original comparison baseline and findings below are retained as the historical analysis that motivated the work.
+
 ## Scope and method
 
 This report compares the current macOS repository with the Windows reference at

@@ -111,6 +111,21 @@ final class ClipboardHistory {
         clearEligibility = nil
     }
 
+    @discardableResult
+    func compareCurrentEntry(
+        expectedID: UUID,
+        with currentValue: CapturedClipboardValue,
+        capturedAt: Date
+    ) -> Bool {
+        guard let capturedEntry = currentEntry, capturedEntry.id == expectedID else {
+            return false
+        }
+
+        entries = [makeEntry(from: currentValue, capturedAt: capturedAt), capturedEntry]
+        clearEligibility = nil
+        return true
+    }
+
     private func insert(
         _ value: CapturedClipboardValue,
         capturedAt: Date

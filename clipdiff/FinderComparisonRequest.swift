@@ -2,40 +2,56 @@ import Foundation
 
 struct FinderComparisonRequest: Equatable {
     static let scheme = "clipdiff"
-    static let host = "compare-selected-files"
 
+    enum Operation: String, Equatable {
+        case compareSelectedFiles = "compare-selected-files"
+        case compareWithCurrent = "compare-with-current"
+
+        var requiredFileCount: Int {
+            switch self {
+            case .compareSelectedFiles: 2
+            case .compareWithCurrent: 1
+            }
+        }
+    }
+
+    let operation: Operation
     let fileURLs: [URL]
 
-    init?(fileURLs: [URL]) {
-        guard fileURLs.count == 2,
+    init?(operation: Operation = .compareSelectedFiles, fileURLs: [URL]) {
+        guard fileURLs.count == operation.requiredFileCount,
               fileURLs.allSatisfy(\.isFileURL) else {
             return nil
         }
+        self.operation = operation
         self.fileURLs = fileURLs
     }
 
     init?(url: URL) {
         guard let components = URLComponents(url: url, resolvingAgainstBaseURL: false),
               components.scheme?.lowercased() == Self.scheme,
-              components.host?.lowercased() == Self.host else {
+              let host = components.host?.lowercased(),
+              let operation = Operation(rawValue: host),
+              components.path.isEmpty,
+              components.fragment == nil else {
             return nil
         }
 
-        let fileValues = (components.queryItems ?? [])
-            .filter { $0.name == "file" }
-            .compactMap(\.value)
-        guard fileValues.count == 2 else { return nil }
+        let queryItems = components.queryItems ?? []
+        guard queryItems.allSatisfy({ $0.name == "file" && $0.value != nil }) else { return nil }
+        let fileValues = queryItems.compactMap(\.value)
+        guard fileValues.count == operation.requiredFileCount else { return nil }
 
         let fileURLs = fileValues.compactMap(URL.init(string:))
         guard fileURLs.count == fileValues.count else { return nil }
 
-        self.init(fileURLs: fileURLs)
+        self.init(operation: operation, fileURLs: fileURLs)
     }
 
     var url: URL? {
         var components = URLComponents()
         components.scheme = Self.scheme
-        components.host = Self.host
+        components.host = operation.rawValue
         components.queryItems = fileURLs.map {
             URLQueryItem(name: "file", value: $0.absoluteString)
         }

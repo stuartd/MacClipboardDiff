@@ -174,6 +174,54 @@ final class ClipboardHistoryTests: XCTestCase {
         XCTAssertFalse(history.isMonitoring)
     }
 
+    func testSingleFinderComparisonPreservesCapturedEntryAndDropsOlderEntry() throws {
+        let history = ClipboardHistory()
+        history.apply(text(1, "older"))
+        history.apply(observation(2, seconds: 4, content: .value(CapturedClipboardValue(
+            text: "captured original",
+            sourceFileName: "settings.json",
+            sourceFilePath: "/old/settings.json"
+        ))))
+        let captured = try XCTUnwrap(history.currentEntry)
+
+        XCTAssertTrue(history.compareCurrentEntry(
+            expectedID: captured.id,
+            with: CapturedClipboardValue(
+                text: "captured original",
+                sourceFileName: "settings.json",
+                sourceFilePath: "/new/settings.json"
+            ),
+            capturedAt: start.addingTimeInterval(10)
+        ))
+
+        XCTAssertEqual(history.previousEntry, captured)
+        XCTAssertEqual(history.currentEntry?.text, "captured original")
+        XCTAssertEqual(history.entries.count, 2)
+        XCTAssertEqual(DiffEngine.makeDocument(
+            previous: history.previousEntry!, current: history.currentEntry!
+        ).summary.label, "No differences")
+        XCTAssertEqual(ClipboardEntryDisplay.resolveFileLabels(
+            previous: history.previousEntry, current: history.currentEntry
+        ), ClipboardFileLabels(previous: "old/settings.json", current: "new/settings.json"))
+
+        history.apply(observation(3, seconds: 11, content: .explicitClear))
+        XCTAssertEqual(history.entries.count, 2, "direct comparison cancels recent-clear eligibility")
+    }
+
+    func testSingleFinderComparisonRejectsAChangedCurrentIdentity() throws {
+        let history = ClipboardHistory()
+        history.apply(text(1, "same"))
+        let firstID = try XCTUnwrap(history.currentEntry?.id)
+        history.apply(text(2, "same"))
+
+        XCTAssertFalse(history.compareCurrentEntry(
+            expectedID: firstID,
+            with: CapturedClipboardValue(text: "file"),
+            capturedAt: start
+        ))
+        XCTAssertEqual(history.entries.map(\.text), ["same", "same"])
+    }
+
     func testStartupChangeCountIsOnlyABaseline() {
         let history = ClipboardHistory(startupChangeCount: 42)
 
