@@ -16,7 +16,7 @@ final class GlobalShortcutValidatorTests: XCTestCase {
             .success([
                 .init(keyCode: shortcut.keyCode, modifiers: shortcut.carbonModifiers, isEnabled: false),
                 .init(keyCode: shortcut.keyCode, modifiers: UInt32(cmdKey), isEnabled: true),
-                .init(keyCode: 8, modifiers: shortcut.carbonModifiers, isEnabled: true)
+                .init(keyCode: 2, modifiers: shortcut.carbonModifiers, isEnabled: true)
             ])
         }
         XCTAssertNil(validator.error(for: shortcut))

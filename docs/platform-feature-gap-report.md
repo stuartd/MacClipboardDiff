@@ -32,7 +32,7 @@ Both applications:
   files and for comparing one selected regular file with the current capture.
 
 Platform-specific mechanisms are intentionally different: macOS uses a menu bar
-extra, `Option-Command-D`, Finder Sync, and Launch Services, while Windows uses a
+extra, `Control-Option-C`, Finder Sync, and Launch Services, while Windows uses a
 notification-area app, `Ctrl+Alt+D`, Explorer integration, and Windows-native
 application discovery.
 

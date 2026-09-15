@@ -14,7 +14,7 @@ final class ShortcutSettingsWindowController: NSWindowController, NSWindowDelega
             backing: .buffered,
             defer: false
         )
-        window.title = "Keyboard Shortcut"
+        window.title = "Change the keyboard shortcut"
         window.isReleasedWhenClosed = false
         window.center()
         super.init(window: window)
@@ -73,13 +73,13 @@ private struct ShortcutSettingsView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Text("Show Diff shortcut")
+            Text("Choose the keyboard shortcut")
                 .font(.headline)
 
             ShortcutRecorderView(shortcut: $shortcut)
                 .frame(height: 52)
 
-            Text((validationError ?? saveError)?.message ?? "Hold Command, Option or Control, then press a letter, number or punctuation key. You can add Shift too.")
+            Text((validationError ?? saveError)?.message ?? "Hold one or more of Command, Option and Control, then press a letter, number or punctuation key. You can also include Shift.")
                 .font(.system(size: 14))
                 .foregroundStyle(validationError == nil && saveError == nil ? Color.primary : Color.red)
                 .fixedSize(horizontal: false, vertical: true)

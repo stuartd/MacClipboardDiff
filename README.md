@@ -14,7 +14,7 @@ The app is copied to `releases/ClipDiff.app` and opened.
 
 1. Copy the older text or file.
 2. Copy the newer text or file.
-3. Press `Option-Command-D`, or choose **Show Diff** from the menu bar item. Choose **Change Keyboard Shortcut…** in that menu to record a different global shortcut.
+3. Press `Control-Option-C`, or choose **Show Diff** from the menu bar item. Choose **Change Keyboard Shortcut…** in that menu to record a different global shortcut.
 4. View the diff in the selected viewer. The built-in native window remains the default.
 
 You can also copy exactly two files together in Finder. ClipDiff immediately treats the first file as **Previous** and the second as **Current**.
