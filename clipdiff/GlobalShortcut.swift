@@ -1,3 +1,4 @@
+import CoreFoundation
 import Foundation
 
 struct GlobalShortcut: Equatable, Sendable {
@@ -69,13 +70,8 @@ struct GlobalShortcutSettingsStore {
     }
 
     func load() -> GlobalShortcut {
-        guard defaults.object(forKey: Key.keyCode) != nil,
-              defaults.object(forKey: Key.modifiers) != nil else {
-            return .defaultShortcut
-        }
-
-        guard let keyCode = UInt32(exactly: defaults.integer(forKey: Key.keyCode)),
-              let modifierBits = UInt32(exactly: defaults.integer(forKey: Key.modifiers)) else {
+        guard let keyCode = storedUInt32(forKey: Key.keyCode),
+              let modifierBits = storedUInt32(forKey: Key.modifiers) else {
             return .defaultShortcut
         }
         let modifiers = GlobalShortcut.Modifiers(
@@ -87,5 +83,13 @@ struct GlobalShortcutSettingsStore {
     func save(_ shortcut: GlobalShortcut) {
         defaults.set(Int(shortcut.keyCode), forKey: Key.keyCode)
         defaults.set(Int(shortcut.modifiers.rawValue), forKey: Key.modifiers)
+    }
+
+    private func storedUInt32(forKey key: String) -> UInt32? {
+        // integer(forKey:) coerces strings, booleans and fractional values,
+        // potentially turning corrupt preferences into an unrelated shortcut.
+        guard let number = defaults.object(forKey: key) as? NSNumber,
+              CFGetTypeID(number) != CFBooleanGetTypeID() else { return nil }
+        return UInt32(exactly: number.doubleValue)
     }
 }

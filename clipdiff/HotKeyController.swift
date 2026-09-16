@@ -7,11 +7,13 @@ private let clipDiffHotKeyID: UInt32 = 1
 protocol HotKeyBackend: AnyObject {
     func installEventHandler(action: @escaping () -> Void) -> OSStatus
     func register(_ shortcut: GlobalShortcut) -> Result<EventHotKeyRef, GlobalShortcutError>
-    func unregister(_ reference: EventHotKeyRef)
+    nonisolated func unregister(_ reference: EventHotKeyRef)
 }
 
+@MainActor
 final class HotKeyController {
     private let backend: HotKeyBackend
+    private let validate: (GlobalShortcut) -> GlobalShortcutError?
     private var hotKeyRef: EventHotKeyRef?
     private let eventHandlerStatus: OSStatus
 
@@ -21,10 +23,13 @@ final class HotKeyController {
 
     init(
         shortcut: GlobalShortcut,
-        backend: HotKeyBackend = CarbonHotKeyBackend(),
+        backend: HotKeyBackend? = nil,
+        validate: @escaping (GlobalShortcut) -> GlobalShortcutError? = { _ in nil },
         action: @escaping () -> Void
     ) {
+        let backend = backend ?? CarbonHotKeyBackend()
         self.backend = backend
+        self.validate = validate
         eventHandlerStatus = backend.installEventHandler(action: action)
         updateShortcut(shortcut)
     }
@@ -39,6 +44,12 @@ final class HotKeyController {
     func updateShortcut(_ shortcut: GlobalShortcut) -> Bool {
         guard eventHandlerStatus == noErr else {
             lastError = .eventHandlerFailed(eventHandlerStatus)
+            return false
+        }
+        // Startup and replacement must use the same checks. Recheck even when
+        // saving the current shortcut, since system settings may have changed.
+        if let error = validate(shortcut) {
+            lastError = error
             return false
         }
         if registeredShortcut == shortcut {
@@ -138,7 +149,7 @@ final class CarbonHotKeyBackend: HotKeyBackend {
         return .success(reference)
     }
 
-    func unregister(_ reference: EventHotKeyRef) {
+    nonisolated func unregister(_ reference: EventHotKeyRef) {
         UnregisterEventHotKey(reference)
     }
 }

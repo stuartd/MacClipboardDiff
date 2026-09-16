@@ -7,7 +7,7 @@ import Foundation
 final class ClipDiffController: ObservableObject {
     @Published private(set) var activeDiff: DiffDocument?
     @Published private(set) var lastError: String?
-    @Published private(set) var isGlobalShortcutAvailable = true
+    @Published private(set) var isGlobalShortcutAvailable = false
     @Published private(set) var globalShortcut: GlobalShortcut
     @Published private(set) var externalDiffTools: [ExternalDiffToolChoice]
     @Published var viewMode: DiffViewMode = .sideBySide
@@ -53,15 +53,6 @@ final class ClipDiffController: ObservableObject {
         lastRequestedChangeCount = clipboard.changeCount
 
         startMonitoring()
-
-        let hotKeyController = HotKeyController(shortcut: globalShortcut) { [weak self] in
-            Task { @MainActor in
-                self?.showDiff()
-            }
-        }
-        self.hotKeyController = hotKeyController
-        isGlobalShortcutAvailable = hotKeyController.isRegistered
-        lastError = hotKeyController.lastError?.message
 
         applicationWillTerminateObserver = NotificationCenter.default.addObserver(
             forName: NSApplication.willTerminateNotification,
@@ -184,11 +175,28 @@ final class ClipDiffController: ObservableObject {
         shortcutSettingsWindowController?.show()
     }
 
+    // The app's menus must exist before we validate a saved shortcut against them.
+    func startGlobalShortcut() {
+        guard hotKeyController == nil else { return }
+        let hotKeyController = HotKeyController(
+            shortcut: globalShortcut,
+            validate: { [globalShortcutValidator] in globalShortcutValidator.error(for: $0) }
+        ) { [weak self] in
+            Task { @MainActor in
+                guard let self else { return }
+                if self.shortcutSettingsWindowController?.captureRegisteredShortcut(self.globalShortcut) == true {
+                    return
+                }
+                self.showDiff()
+            }
+        }
+        self.hotKeyController = hotKeyController
+        isGlobalShortcutAvailable = hotKeyController.isRegistered
+        lastError = hotKeyController.lastError?.message
+    }
+
     @discardableResult
     func setGlobalShortcut(_ shortcut: GlobalShortcut) -> GlobalShortcutError? {
-        if let error = shortcutValidationError(shortcut) {
-            return error
-        }
         guard hotKeyController?.updateShortcut(shortcut) == true else {
             isGlobalShortcutAvailable = hotKeyController?.isRegistered ?? false
             let error = hotKeyController?.lastError ?? .unavailable

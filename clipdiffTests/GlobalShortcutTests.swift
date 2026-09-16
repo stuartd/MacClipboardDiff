@@ -60,4 +60,32 @@ final class GlobalShortcutTests: XCTestCase {
         defaults.set(-1, forKey: "GlobalShortcut.Modifiers")
         XCTAssertEqual(store.load(), .defaultShortcut)
     }
+
+    func testMalformedPreferencesCannotBecomeADifferentValidShortcut() throws {
+        let suiteName = "ClipDiffTests.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let store = GlobalShortcutSettingsStore(defaults: defaults)
+        defaults.set(1, forKey: "GlobalShortcut.Modifiers")
+
+        for invalidKey: Any in ["not a key", true, 2.5, [2], UInt64.max] {
+            defaults.set(invalidKey, forKey: "GlobalShortcut.KeyCode")
+            XCTAssertEqual(store.load(), .defaultShortcut, "Invalid key: \(invalidKey)")
+        }
+        defaults.set(2, forKey: "GlobalShortcut.KeyCode")
+        for invalidModifiers: Any in ["1", true, 1.5, [1], UInt64.max] {
+            defaults.set(invalidModifiers, forKey: "GlobalShortcut.Modifiers")
+            XCTAssertEqual(store.load(), .defaultShortcut, "Invalid modifiers: \(invalidModifiers)")
+        }
+    }
+
+    func testSavingDefaultReplacesCustomShortcutAcrossReload() throws {
+        let suiteName = "ClipDiffTests.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let store = GlobalShortcutSettingsStore(defaults: defaults)
+        store.save(try XCTUnwrap(GlobalShortcut(keyCode: 2, modifiers: [.command, .control])))
+        store.save(.defaultShortcut)
+        XCTAssertEqual(GlobalShortcutSettingsStore(defaults: defaults).load(), .defaultShortcut)
+    }
 }

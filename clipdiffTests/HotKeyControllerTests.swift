@@ -2,8 +2,58 @@ import Carbon
 import XCTest
 @testable import ClipDiffCore
 
+@MainActor
 final class HotKeyControllerTests: XCTestCase {
-    func testFailedReplacementKeepsWorkingRegistration() {
+    func testStartupConflictIsRejectedBeforeRegistrationAndCanBeRetried() async {
+        let backend = FakeHotKeyBackend()
+        var conflict: GlobalShortcutError? = .systemShortcut
+        let controller = HotKeyController(
+            shortcut: .defaultShortcut, backend: backend, validate: { _ in conflict }, action: {}
+        )
+        XCTAssertFalse(controller.isRegistered)
+        XCTAssertNil(controller.registeredShortcut)
+        XCTAssertEqual(controller.lastError, .systemShortcut)
+        XCTAssertEqual(backend.events, ["install"])
+
+        conflict = nil
+        XCTAssertTrue(controller.updateShortcut(.defaultShortcut))
+        XCTAssertTrue(controller.isRegistered)
+        XCTAssertNil(controller.lastError)
+        XCTAssertEqual(backend.events, ["install", "register"])
+    }
+
+    func testRejectedReplacementAndDefaultKeepTheWorkingShortcut() async {
+        let backend = FakeHotKeyBackend()
+        var conflict: GlobalShortcutError?
+        let controller = HotKeyController(
+            shortcut: alternative, backend: backend, validate: { _ in conflict }, action: {}
+        )
+        conflict = .menuItem("Copy")
+        XCTAssertFalse(controller.updateShortcut(.defaultShortcut))
+        XCTAssertEqual(controller.registeredShortcut, alternative)
+        XCTAssertEqual(controller.lastError, conflict)
+        XCTAssertEqual(backend.events, ["install", "register"])
+
+        conflict = nil
+        backend.result = .success(OpaquePointer(bitPattern: 2)!)
+        XCTAssertTrue(controller.updateShortcut(.defaultShortcut))
+        XCTAssertEqual(controller.registeredShortcut, .defaultShortcut)
+        XCTAssertEqual(backend.events, ["install", "register", "register", "unregister:1"])
+    }
+
+    func testSavingCurrentShortcutRechecksChangedSystemSettings() async {
+        let backend = FakeHotKeyBackend()
+        var conflict: GlobalShortcutError?
+        let controller = HotKeyController(
+            shortcut: .defaultShortcut, backend: backend, validate: { _ in conflict }, action: {}
+        )
+        conflict = .systemShortcut
+        XCTAssertFalse(controller.updateShortcut(.defaultShortcut))
+        XCTAssertEqual(controller.lastError, .systemShortcut)
+        XCTAssertEqual(backend.events, ["install", "register"])
+    }
+
+    func testFailedReplacementKeepsWorkingRegistration() async {
         let backend = FakeHotKeyBackend()
         let controller = HotKeyController(shortcut: .defaultShortcut, backend: backend, action: {})
         backend.result = .failure(.alreadyRegistered)
@@ -15,7 +65,7 @@ final class HotKeyControllerTests: XCTestCase {
         XCTAssertEqual(backend.events, ["install", "register", "register"])
     }
 
-    func testSuccessfulReplacementRegistersBeforeReleasingPreviousShortcut() {
+    func testSuccessfulReplacementRegistersBeforeReleasingPreviousShortcut() async {
         let backend = FakeHotKeyBackend()
         let controller = HotKeyController(shortcut: .defaultShortcut, backend: backend, action: {})
         backend.result = .success(OpaquePointer(bitPattern: 2)!)
@@ -26,7 +76,7 @@ final class HotKeyControllerTests: XCTestCase {
         XCTAssertEqual(backend.events, ["install", "register", "register", "unregister:1"])
     }
 
-    func testSavingSameShortcutDoesNotConflictWithItself() {
+    func testSavingSameShortcutDoesNotConflictWithItself() async {
         let backend = FakeHotKeyBackend()
         let controller = HotKeyController(shortcut: .defaultShortcut, backend: backend, action: {})
         backend.result = .failure(.alreadyRegistered)
@@ -34,7 +84,7 @@ final class HotKeyControllerTests: XCTestCase {
         XCTAssertEqual(backend.events, ["install", "register"])
     }
 
-    func testStartupRegistrationFailureCanBeRecovered() {
+    func testStartupRegistrationFailureCanBeRecovered() async {
         let backend = FakeHotKeyBackend()
         backend.result = .failure(.registrationFailed(-50))
         let controller = HotKeyController(shortcut: .defaultShortcut, backend: backend, action: {})
@@ -48,7 +98,7 @@ final class HotKeyControllerTests: XCTestCase {
         XCTAssertNil(controller.lastError)
     }
 
-    func testHandlerFailureDoesNotRegisterAnUnusableShortcut() {
+    func testHandlerFailureDoesNotRegisterAnUnusableShortcut() async {
         let backend = FakeHotKeyBackend()
         backend.installStatus = -50
         let controller = HotKeyController(shortcut: .defaultShortcut, backend: backend, action: {})
@@ -58,7 +108,7 @@ final class HotKeyControllerTests: XCTestCase {
         XCTAssertEqual(backend.events, ["install"])
     }
 
-    func testShutdownReleasesCurrentRegistration() {
+    func testShutdownReleasesCurrentRegistration() async {
         let backend = FakeHotKeyBackend()
         var controller: HotKeyController? = HotKeyController(shortcut: .defaultShortcut, backend: backend, action: {})
         XCTAssertTrue(controller!.isRegistered)
@@ -66,7 +116,7 @@ final class HotKeyControllerTests: XCTestCase {
         XCTAssertEqual(backend.events, ["install", "register", "unregister:1"])
     }
 
-    func testOnlyDuplicateRegistrationErrorsAreReportedAsConflicts() {
+    func testOnlyDuplicateRegistrationErrorsAreReportedAsConflicts() async {
         XCTAssertEqual(GlobalShortcutError.registrationFailure(OSStatus(eventHotKeyExistsErr)), .alreadyRegistered)
         XCTAssertEqual(GlobalShortcutError.registrationFailure(-50), .registrationFailed(-50))
     }

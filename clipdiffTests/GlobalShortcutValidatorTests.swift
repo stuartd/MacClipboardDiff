@@ -70,6 +70,17 @@ final class GlobalShortcutValidatorTests: XCTestCase {
         XCTAssertNil(validator().error(for: GlobalShortcut(keyCode: 8, modifiers: [.command])!))
     }
 
+    func testShiftedPunctuationWithExplicitShiftAlsoConflicts() async {
+        let menu = NSMenu()
+        let help = NSMenuItem(title: "Help", action: nil, keyEquivalent: "?")
+        help.keyEquivalentModifierMask = [.command, .shift]
+        menu.addItem(help)
+        var checker = validator(menu: menu)
+        checker.characters = { _, shifted in shifted ? "?" : "/" }
+        XCTAssertEqual(checker.error(for: GlobalShortcut(keyCode: 44, modifiers: [.command, .shift])!), .menuItem("Help"))
+        XCTAssertNil(checker.error(for: GlobalShortcut(keyCode: 44, modifiers: [.command])!))
+    }
+
     func testSystemQueryFailureIsReportedRatherThanCalledAConflict() async {
         var checker = validator()
         checker.systemShortcuts = { .failure(.systemCheckFailed(-108)) }

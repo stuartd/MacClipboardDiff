@@ -42,7 +42,8 @@ let package = Package(
                 "FinderSingleFileRequestState.swift",
                 "GlobalShortcut.swift",
                 "GlobalShortcutValidator.swift",
-                "HotKeyController.swift"
+                "HotKeyController.swift",
+                "ShortcutRecorderControl.swift"
             ]
         ),
         .testTarget(

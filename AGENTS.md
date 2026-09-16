@@ -18,6 +18,7 @@ Keep it small. This is not an App Store product, not a cloud service, and not a 
 - `clipdiff/HotKeyController.swift`: Carbon global hotkey registration for `Control-Option-C`.
 - `clipdiff/GlobalShortcut.swift`: validated shortcut model and preferences persistence.
 - `clipdiff/ShortcutSettingsWindowController.swift`: native global-shortcut recorder window.
+- `clipdiff/ShortcutRecorderControl.swift`: focus-aware AppKit shortcut capture control.
 - `clipdiff/ClipDiffApplicationDelegate.swift`: routes files opened by the Finder extension into the controller.
 - `clipdiff/DiffEngine.swift`: text splitting, diff row generation, summaries, and copyable unified diff output.
 - `clipdiff/ClipboardModels.swift`: clipboard entry, diff row/document, summary, view mode, and text-line models.

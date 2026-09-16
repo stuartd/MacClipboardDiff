@@ -105,7 +105,7 @@ struct GlobalShortcutValidator {
                 }
                 // AppKit can encode Shift in punctuation itself, for example “?”.
                 if let shifted, shifted != base, equivalent == shifted,
-                   modifiers == shortcut.appKitModifiers.subtracting(.shift) {
+                   modifiers.subtracting(.shift) == shortcut.appKitModifiers.subtracting(.shift) {
                     return item
                 }
             }
