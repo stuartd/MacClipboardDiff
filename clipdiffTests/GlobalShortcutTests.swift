@@ -3,10 +3,10 @@ import XCTest
 @testable import ClipDiffCore
 
 final class GlobalShortcutTests: XCTestCase {
-    func testDefaultShortcutIsControlOptionC() {
-        XCTAssertEqual(GlobalShortcut.defaultShortcut.displayString, "⌃⌥C")
+    func testDefaultShortcutIsOptionCommandC() {
+        XCTAssertEqual(GlobalShortcut.defaultShortcut.displayString, "⌥⌘C")
         XCTAssertEqual(GlobalShortcut.defaultShortcut.keyCode, 8)
-        XCTAssertEqual(GlobalShortcut.defaultShortcut.modifiers, [.control, .option])
+        XCTAssertEqual(GlobalShortcut.defaultShortcut.modifiers, [.command, .option])
     }
 
     func testShortcutRequiresCommandOptionOrControl() {

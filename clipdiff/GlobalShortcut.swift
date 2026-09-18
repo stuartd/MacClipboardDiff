@@ -16,7 +16,7 @@ struct GlobalShortcut: Equatable, Sendable {
 
     static let defaultShortcut = GlobalShortcut(
         keyCode: 8,
-        modifiers: [.control, .option]
+        modifiers: [.command, .option]
     )!
 
     let keyCode: UInt32
