@@ -8,6 +8,7 @@ final class ClipDiffController: ObservableObject {
     @Published private(set) var activeDiff: DiffDocument?
     @Published private(set) var lastError: String?
     @Published private(set) var isGlobalShortcutAvailable = false
+    @Published private(set) var isFinderIntegrationEnabled = FIFinderSyncController.isExtensionEnabled
     @Published private(set) var globalShortcut: GlobalShortcut
     @Published private(set) var externalDiffTools: [ExternalDiffToolChoice]
     @Published var viewMode: DiffViewMode = .sideBySide
@@ -30,6 +31,7 @@ final class ClipDiffController: ObservableObject {
     private var shortcutSettingsWindowController: ShortcutSettingsWindowController?
     private var hotKeyController: HotKeyController?
     private var applicationWillTerminateObserver: NSObjectProtocol?
+    private var finderIntegrationStatusObserver: AnyCancellable?
 
     convenience init() {
         self.init(clipboard: SystemClipboardStore())
@@ -53,6 +55,16 @@ final class ClipDiffController: ObservableObject {
         lastRequestedChangeCount = clipboard.changeCount
 
         startMonitoring()
+
+        // A menu-bar menu can open without activating this accessory app. Keep
+        // this subscription on the controller so it also works before SwiftUI
+        // constructs the menu and while clipboard monitoring is paused.
+        finderIntegrationStatusObserver = NotificationCenter.default
+            .publisher(for: NSApplication.didBecomeActiveNotification)
+            .merge(with: NotificationCenter.default.publisher(for: NSMenu.didBeginTrackingNotification))
+            .sink { [weak self] _ in
+                self?.refreshFinderIntegrationStatus()
+            }
 
         applicationWillTerminateObserver = NotificationCenter.default.addObserver(
             forName: NSApplication.willTerminateNotification,
@@ -122,8 +134,10 @@ final class ClipDiffController: ObservableObject {
         selectedExternalDiffTool?.displayName ?? "Built-in viewer"
     }
 
-    var isFinderIntegrationEnabled: Bool {
-        FIFinderSyncController.isExtensionEnabled
+    private func refreshFinderIntegrationStatus() {
+        let enabled = FIFinderSyncController.isExtensionEnabled
+        guard enabled != isFinderIntegrationEnabled else { return }
+        isFinderIntegrationEnabled = enabled
     }
 
     func showDiff() {

@@ -4,6 +4,7 @@ import SwiftUI
 @MainActor
 final class ShortcutSettingsWindowController: NSWindowController, NSWindowDelegate {
     private let controller: ClipDiffController
+    private var isPresenting = false
 
     init(controller: ClipDiffController) {
         self.controller = controller
@@ -29,6 +30,28 @@ final class ShortcutSettingsWindowController: NSWindowController, NSWindowDelega
     func show() {
         guard let window else { return }
 
+        guard !isPresenting else {
+            NSApplication.shared.activate(ignoringOtherApps: true)
+            window.makeKeyAndOrderFront(nil)
+            return
+        }
+        isPresenting = true
+
+        // Let the menu dismiss on the next default run-loop turn. Entering the
+        // modal loop from a main-queue block would stall shortcut callbacks.
+        perform(#selector(presentModalWindow), with: nil, afterDelay: 0)
+    }
+
+    @objc private func presentModalWindow() {
+        guard let window else {
+            isPresenting = false
+            return
+        }
+        defer {
+            window.orderOut(nil)
+            isPresenting = false
+        }
+
         window.contentView = NSHostingView(
             rootView: ShortcutSettingsView(
                 initialShortcut: controller.globalShortcut,
@@ -46,13 +69,26 @@ final class ShortcutSettingsWindowController: NSWindowController, NSWindowDelega
                 }
             )
         )
-        window.makeKeyAndOrderFront(nil)
+        window.contentView?.layoutSubtreeIfNeeded()
         NSApplication.shared.activate(ignoringOtherApps: true)
+        window.makeKeyAndOrderFront(nil)
+        window.makeFirstResponder(window.initialFirstResponder)
+        NSApplication.shared.runModal(for: window)
+    }
+
+    func windowWillClose(_ notification: Notification) {
+        guard NSApplication.shared.modalWindow === window else { return }
+        // Includes Save, Cancel, Escape, and the title-bar close button.
+        NSApplication.shared.stopModal()
     }
 
     func captureRegisteredShortcut(_ shortcut: GlobalShortcut) -> Bool {
+        guard isPresenting else { return false }
         guard let window, window.isKeyWindow,
-              let recorder = window.firstResponder as? ShortcutRecorderControl else { return false }
+              let recorder = window.firstResponder as? ShortcutRecorderControl else {
+            // Do not open another comparison while the shortcut dialog is modal.
+            return true
+        }
         return recorder.record(shortcut)
     }
 }
