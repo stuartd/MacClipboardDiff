@@ -284,7 +284,7 @@ final class ClipDiffController: ObservableObject {
     func chooseExternalDiffTool() {
         let panel = NSOpenPanel()
         panel.title = "Choose a diff application"
-        panel.message = "Choose a macOS application or executable that can compare two file paths."
+        panel.message = "Choose a diff application that accepts two file paths as command-line arguments."
         panel.prompt = "Choose"
         panel.canChooseFiles = true
         panel.canChooseDirectories = false
