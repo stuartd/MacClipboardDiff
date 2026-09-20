@@ -54,6 +54,12 @@ final class ExternalDiffLauncher {
             previousLabel: labels.previous,
             currentLabel: labels.current
         )
+        if let appURL = Self.reusableMacDiffApplication(for: choice.executableURL) {
+            // Launch Services delivers both files to the existing window. Waiting
+            // for the app (not just /usr/bin/open) keeps the inputs alive until quit.
+            process.executableURL = URL(fileURLWithPath: "/usr/bin/open")
+            process.arguments = ["-W", "-a", appURL.path, files.previousURL.path, files.currentURL.path]
+        }
         process.terminationHandler = { [weak self] process in
             self?.scheduleCleanup(for: process)
         }
@@ -78,6 +84,19 @@ final class ExternalDiffLauncher {
             scheduleCleanup(for: process)
         }
         return true
+    }
+
+    static func reusableMacDiffApplication(for executableURL: URL) -> URL? {
+        let appURL = executableURL.resolvingSymlinksInPath()
+            .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+        guard appURL.pathExtension == "app",
+              let bundle = Bundle(url: appURL),
+              bundle.bundleIdentifier == "local.macdiff.MacDiff",
+              bundle.object(forInfoDictionaryKey: "MacDiffAcceptsComparisonFiles") as? Bool == true,
+              bundle.executableURL?.standardizedFileURL == executableURL.resolvingSymlinksInPath().standardizedFileURL else {
+            return nil
+        }
+        return appURL
     }
 
     func cleanupAll() {

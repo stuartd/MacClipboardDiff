@@ -5,6 +5,31 @@ final class ExternalDiffToolCatalogTests: XCTestCase {
     private let previous = "/tmp/ClipDiff Test/Previous clipboard.txt"
     private let current = "/tmp/ClipDiff Test/Current clipboard.txt"
 
+    func testOnlyCompatibleMacDiffBundlesReuseTheWindow() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root) }
+        for (name, identifier, supportsReuse) in [
+            ("Current", "local.macdiff.MacDiff", true),
+            ("Legacy", "local.macdiff.MacDiff", false),
+            ("Other", "example.other", true)
+        ] {
+            let app = root.appendingPathComponent("\(name).app")
+            let executable = app.appendingPathComponent("Contents/MacOS/MacDiff")
+            try FileManager.default.createDirectory(at: executable.deletingLastPathComponent(), withIntermediateDirectories: true)
+            try Data().write(to: executable)
+            let info: [String: Any] = [
+                "CFBundleIdentifier": identifier,
+                "CFBundleExecutable": "MacDiff",
+                "CFBundlePackageType": "APPL",
+                "MacDiffAcceptsComparisonFiles": supportsReuse
+            ]
+            let data = try PropertyListSerialization.data(fromPropertyList: info, format: .xml, options: 0)
+            try data.write(to: app.appendingPathComponent("Contents/Info.plist"))
+            XCTAssertEqual(ExternalDiffLauncher.reusableMacDiffApplication(for: executable), name == "Current" ? app : nil)
+        }
+        XCTAssertNil(ExternalDiffLauncher.reusableMacDiffApplication(for: URL(fileURLWithPath: "/usr/bin/diff")))
+    }
+
     func testCatalogSupportsCommonMacDiffApplications() {
         XCTAssertEqual(
             ExternalDiffToolCatalog.tools.map(\.id),
