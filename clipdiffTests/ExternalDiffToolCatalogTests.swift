@@ -13,7 +13,7 @@ final class ExternalDiffToolCatalogTests: XCTestCase {
             ("Legacy", "local.macdiff.MacDiff", false),
             ("Other", "example.other", true)
         ] {
-            let app = root.appendingPathComponent("\(name).app")
+            let app = root.appendingPathComponent("\(name).app", isDirectory: true)
             let executable = app.appendingPathComponent("Contents/MacOS/MacDiff")
             try FileManager.default.createDirectory(at: executable.deletingLastPathComponent(), withIntermediateDirectories: true)
             try Data().write(to: executable)
