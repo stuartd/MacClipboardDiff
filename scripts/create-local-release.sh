@@ -5,7 +5,8 @@ source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/_common.sh"
 
 CONFIGURATION="${CONFIGURATION:-Release}"
 OUTPUT_DIR="${1:-$REPO_ROOT/releases}"
-CODE_SIGN_IDENTITY="${CODE_SIGN_IDENTITY:--}"
+CODE_SIGN_IDENTITY="${CODE_SIGN_IDENTITY:-Apple Development}"
+DEVELOPMENT_TEAM="${DEVELOPMENT_TEAM:-ZQ5KWSZ72K}"
 DERIVED_DATA_DIR="$(mktemp -d "${TMPDIR:-/tmp}/clipdiff-release-derived-data.XXXXXX")"
 BUILD_PRODUCTS_DIR="$DERIVED_DATA_DIR/Build/Products/$CONFIGURATION"
 BUILT_APP="$BUILD_PRODUCTS_DIR/$XCODE_APP_BUNDLE_NAME"
@@ -27,8 +28,10 @@ xcodebuild clean build \
     -configuration "$CONFIGURATION" \
     -destination 'platform=macOS' \
     -derivedDataPath "$DERIVED_DATA_DIR" \
-    CODE_SIGN_IDENTITY="$CODE_SIGN_IDENTITY" \
-    GIT_COMMIT="$GIT_COMMIT"
+    GIT_COMMIT="$GIT_COMMIT" \
+    CODE_SIGN_STYLE=Automatic \
+    DEVELOPMENT_TEAM="$DEVELOPMENT_TEAM" \
+    CODE_SIGN_IDENTITY="$CODE_SIGN_IDENTITY"
 
 if [[ ! -d "$BUILT_APP" ]]; then
     echo "Built app not found: $BUILT_APP" >&2

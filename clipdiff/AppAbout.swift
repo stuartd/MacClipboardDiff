@@ -37,11 +37,11 @@ enum AppAbout {
         ]
 
         let result = NSMutableAttributedString(
-            string: "A minimal clipboard diff tool.\n\n",
+            string: "A minimal clipboard diff tool for macOS.\n\n",
             attributes: attributes
         )
         result.append(link(
-            "MacClipboardDiff project",
+            "Project",
             destination: "https://github.com/stuartd/MacClipboardDiff",
             attributes: attributes
         ))
