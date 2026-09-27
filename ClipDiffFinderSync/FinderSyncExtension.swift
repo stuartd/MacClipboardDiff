@@ -1,5 +1,6 @@
 import AppKit
 import FinderSync
+import UniformTypeIdentifiers
 
 final class FinderSyncExtension: FIFinderSync {
     private static let pairMenuTitle = "Compare two selected files with ClipDiff"
@@ -78,11 +79,18 @@ final class FinderSyncExtension: FIFinderSync {
 
         guard urls.allSatisfy({ url in
             guard url.isFileURL,
-                  let values = try? url.resourceValues(forKeys: [.isRegularFileKey]),
+                  let values = try? url.resourceValues(forKeys: [.isRegularFileKey, .contentTypeKey]),
                   values.isRegularFile == true else {
                 return false
             }
-            return true
+            guard let type = values.contentType else { return true }
+            // Unknown extensions can still contain source code or plain text.
+            // Reject known binary formats without reading files in Finder's menu callback.
+            let binaryTypes: [UTType] = [
+                .image, .audiovisualContent, .archive, .pdf,
+                .executable, .font, .database
+            ]
+            return !binaryTypes.contains { type.conforms(to: $0) }
         }) else { return nil }
         return urls.count == 1 ? .compareWithCurrent : .compareSelectedFiles
     }
