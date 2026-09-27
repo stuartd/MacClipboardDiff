@@ -1,70 +1,73 @@
 import AppKit
+import SwiftUI
 
 @MainActor
 enum AppAbout {
-    static func show() {
-        let bundle = Bundle.main
-        let marketingVersion = bundle.object(
-            forInfoDictionaryKey: "CFBundleShortVersionString"
-        ) as? String ?? "Unknown"
-        let buildNumber = bundle.object(
-            forInfoDictionaryKey: "CFBundleVersion"
-        ) as? String
-        let commit = bundle.object(
-            forInfoDictionaryKey: "ClipDiffGitCommit"
-        ) as? String
+    private static var panel: NSPanel?
 
-        NSApplication.shared.orderFrontStandardAboutPanel(options: [
-            .applicationName: "ClipDiff",
-            .applicationIcon: NSApplication.shared.applicationIconImage!,
-            .version: marketingVersion,
-            .applicationVersion: AppVersionFormatter.applicationVersion(
-                buildNumber: buildNumber,
-                commit: commit
-            ),
-            .credits: credits
-        ])
+    static func show() {
+        if panel == nil {
+            let aboutPanel = NSPanel(
+                contentRect: NSRect(x: 0, y: 0, width: 364, height: 338),
+                styleMask: [.titled, .closable],
+                backing: .buffered,
+                defer: false
+            )
+            aboutPanel.title = "About ClipDiff"
+            aboutPanel.isReleasedWhenClosed = false
+            aboutPanel.contentView = NSHostingView(rootView: ClipDiffAboutView())
+            aboutPanel.center()
+            panel = aboutPanel
+        }
+        panel?.makeKeyAndOrderFront(nil)
         NSApplication.shared.activate(ignoringOtherApps: true)
     }
+}
 
-    private static var credits: NSAttributedString {
-        let paragraphStyle = NSMutableParagraphStyle()
-        paragraphStyle.alignment = .center
+private struct ClipDiffAboutView: View {
+    private let bundle = Bundle.main
 
-        let attributes: [NSAttributedString.Key: Any] = [
-            .font: NSFont.systemFont(ofSize: 14),
-            .paragraphStyle: paragraphStyle
-        ]
+    var body: some View {
+        VStack(spacing: 20) {
+            VStack(spacing: 10) {
+                Image(nsImage: NSApplication.shared.applicationIconImage)
+                    .resizable()
+                    .frame(width: 72, height: 72)
+                    .accessibilityHidden(true)
+                Text("ClipDiff")
+                    .font(.system(size: 26, weight: .semibold))
+            }
 
-        let result = NSMutableAttributedString(
-            string: "A minimal clipboard diff tool for macOS.\n\n",
-            attributes: attributes
-        )
-        result.append(link(
-            "Project",
-            destination: "https://github.com/stuartd/MacClipboardDiff",
-            attributes: attributes
-        ))
-        return result
-    }
+            Grid(alignment: .leading, horizontalSpacing: 14, verticalSpacing: 10) {
+                GridRow {
+                    Text("Developer").foregroundStyle(.secondary)
+                    Text("Stuart Dunkeld")
+                }
+                GridRow {
+                    Text("Company").foregroundStyle(.secondary)
+                    Text("Rose Hill Solutions")
+                }
+                GridRow {
+                    Text("Commit").foregroundStyle(.secondary)
+                    Text(AppVersionFormatter.shortCommit(
+                        bundle.object(forInfoDictionaryKey: "ClipDiffGitCommit") as? String
+                    ) ?? "Unavailable")
+                }
+                .padding(.top, 8)
+                GridRow {
+                    Text("Repository").foregroundStyle(.secondary)
+                    Link("stuartd/MacClipboardDiff", destination: URL(string: "https://github.com/stuartd/MacClipboardDiff")!)
+                }
+            }
+            .font(.system(size: 14))
+            .textSelection(.enabled)
 
-    private static func link(
-        _ title: String,
-        destination: String,
-        attributes: [NSAttributedString.Key: Any]
-    ) -> NSAttributedString {
-        guard let url = URL(string: destination) else {
-            return NSAttributedString(string: title, attributes: attributes)
+            Text("© 2026 Stuart Dunkeld")
+                .font(.system(size: 14))
+                .foregroundStyle(.secondary)
+                .frame(maxWidth: .infinity, alignment: .center)
         }
-
-        var linkAttributes = attributes
-        linkAttributes[.link] = url
-        linkAttributes[.foregroundColor] = NSColor.linkColor
-        linkAttributes[.underlineStyle] = NSUnderlineStyle.single.rawValue
-
-        return NSAttributedString(
-            string: title,
-            attributes: linkAttributes
-        )
+        .padding(24)
+        .frame(width: 364, height: 338)
     }
 }
