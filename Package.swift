@@ -43,7 +43,8 @@ let package = Package(
                 "GlobalShortcut.swift",
                 "GlobalShortcutValidator.swift",
                 "HotKeyController.swift",
-                "ShortcutRecorderControl.swift"
+                "ShortcutRecorderControl.swift",
+                "SingleInstanceLock.swift"
             ]
         ),
         .testTarget(

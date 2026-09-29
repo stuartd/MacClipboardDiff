@@ -10,6 +10,10 @@ scripts/create-local-release.sh
 
 The app is copied to `releases/ClipDiff.app` and opened.
 
+ClipDiff runs one instance per user. Launching it again activates the running
+instance and exits the duplicate without requesting a diff. To switch to a newly
+built version, quit the running app first; quitting discards its captured text.
+
 ## Workflow
 
 1. Copy the older text or file.
@@ -49,6 +53,9 @@ The full standardized file path is retained only with the corresponding in-memor
 ## Design
 
 - The app monitors `NSPasteboard.changeCount` and captures only future changes.
+- A per-user file lock prevents duplicate clipboard monitors and hotkeys. Its file
+  in `~/Library/Application Support/ClipDiff/instance.lock` contains only a process
+  ID; macOS releases the lock when the owning process exits, including after a crash.
 - The optional Finder extension inspects selection metadata only to choose the one-file or two-file command. File contents are read only after that command is chosen; the app rechecks selection requests and asynchronous capture identity before committing.
 - Plain text and one or two copied file URLs are supported.
 - Separate copy events are captured even when their text is identical.

@@ -6,8 +6,11 @@ struct clipdiffApp: App {
     private var appDelegate
 
     var body: some Scene {
-        MenuBarExtra("ClipDiff", systemImage: "doc.on.clipboard") {
-            MenuContentView(controller: appDelegate.controller)
+        MenuBarExtra("ClipDiff", systemImage: "doc.on.clipboard",
+                     isInserted: .constant(appDelegate.controller != nil)) {
+            if let controller = appDelegate.controller {
+                MenuContentView(controller: controller)
+            }
         }
         .menuBarExtraStyle(.menu)
     }
