@@ -37,13 +37,6 @@ struct MenuContentView: View {
 
             StartAtLoginMenuContent(manager: controller.loginItemManager)
 
-            Button {
-                controller.clearCapturedText()
-            } label: {
-                Label("Clear Captured Text", systemImage: "trash")
-            }
-            .disabled(controller.entries.isEmpty)
-
             if let lastError = controller.lastError {
                 Text(lastError)
                     .font(.caption)

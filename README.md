@@ -23,8 +23,8 @@ requires approval, the menu says so and offers **Open Login Items…**.
 
 Turning off **Start at Login** affects future sign-ins. ClipDiff captures clipboard
 changes whenever it is running. **Quit ClipDiff** stops capture and discards the
-captured text. **Clear Captured Text** discards the current captures and keeps the
-app ready for future copies.
+captured text.
+
 Enable startup from the Release app at a stable location, rather than a temporary
 Xcode build, so macOS can find that copy at login.
 

@@ -77,11 +77,6 @@ final class ClipboardHistory {
         }
     }
 
-    func clearCapturedText() {
-        entries.removeAll()
-        clearEligibility = nil
-    }
-
     func replaceComparisonPair(
         previous previousValue: CapturedClipboardValue,
         current currentValue: CapturedClipboardValue,

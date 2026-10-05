@@ -58,14 +58,6 @@ private struct DiffHeaderView: View {
             }
             .buttonStyle(.bordered)
             .help("Copy diff")
-
-            Button {
-                controller.clearCapturedText()
-            } label: {
-                Image(systemName: "trash")
-            }
-            .buttonStyle(.bordered)
-            .help("Clear captured text")
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 10)

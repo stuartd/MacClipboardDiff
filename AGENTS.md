@@ -57,7 +57,7 @@ Select the `clipdiff` scheme, choose **My Mac**, and press `Cmd-R`.
 
 - Keep the app native: Swift, SwiftUI, AppKit, Carbon hotkeys, Foundation, and `NSPasteboard`.
 - Preserve the in-memory privacy model. Captured text, decoded file contents, and source paths should not be written to disk, uploaded, logged, indexed, or retained after quitting.
-- Capture clipboard changes whenever ClipDiff is running. Use **Quit ClipDiff** to stop capture and discard the current session; do not add a pause toggle.
+- Capture clipboard changes whenever ClipDiff is running. Use **Quit ClipDiff** to stop capture and discard the current session; do not add manual pause or clear commands.
 - Capture plain text plus one or two copied file URLs. Treat separate copy events as separate entries even when their text is identical, and continue ignoring unsupported non-text clipboard changes.
 - Keep full source paths only on the corresponding two-entry history. Resolve display labels before creating a diff document, then drop the paths from that document.
 - Keep copied-file reads bounded, off the main actor, and superseded by newer pasteboard changes.
@@ -89,7 +89,7 @@ Manual smoke test after changes:
 4. Press `Option-Command-C`, or choose **Show Diff** from the menu bar item.
 5. Check side-by-side and unified views.
 6. Use **Copy diff** and confirm the clipboard receives unified diff text.
-7. Use **Clear Captured Text** and confirm the app asks for two values again.
+7. Quit ClipDiff, reopen it, and confirm **Show Diff** stays disabled until two new values are copied.
 8. Copy one text file, then another, and verify filenames appear in both diff modes.
 9. Copy exactly two text files together and verify their Finder order becomes previous/current.
 10. Copy a binary, empty, directory, and oversized file and verify the fallback reason.

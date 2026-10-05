@@ -86,10 +86,6 @@ final class ClipDiffController: ObservableObject {
         }
     }
 
-    var entries: [ClipboardEntry] {
-        history.entries
-    }
-
     var currentEntry: ClipboardEntry? {
         history.currentEntry
     }
@@ -280,15 +276,6 @@ final class ClipDiffController: ObservableObject {
             externalDiffTools.append(choice)
         }
         selectExternalDiffTool(choice)
-    }
-
-    func clearCapturedText() {
-        cancelPendingFileRead()
-        cancelPendingFinderRead()
-        objectWillChange.send()
-        history.clearCapturedText()
-        activeDiff = nil
-        lastError = nil
     }
 
     func copyActiveDiff() {

@@ -75,17 +75,6 @@ final class ClipboardHistoryTests: XCTestCase {
         XCTAssertEqual(history.entries.map(\.text), ["kept"])
     }
 
-    func testCaptureContinuesAfterClearingHistory() {
-        let history = ClipboardHistory()
-        history.apply(text(1, "first"))
-        history.clearCapturedText()
-
-        XCTAssertEqual(history.apply(text(1, "first")), .none)
-        XCTAssertEqual(history.apply(text(2, "next")), .accepted)
-
-        XCTAssertEqual(history.entries.map(\.text), ["next"])
-    }
-
     func testRecentExplicitClearRemovesOnlyLatestEligibleEntry() {
         let history = ClipboardHistory()
         history.apply(text(1, "older"))
@@ -133,17 +122,6 @@ final class ClipboardHistoryTests: XCTestCase {
         history.apply(observation(3, seconds: 2, content: .explicitClear))
 
         XCTAssertEqual(history.entries.map(\.text), ["ordinary"])
-    }
-
-    func testClearCapturedTextRemovesBothEntries() {
-        let history = ClipboardHistory()
-        history.apply(text(1, "first"))
-        history.apply(text(2, "second"))
-
-        history.clearCapturedText()
-
-        XCTAssertTrue(history.entries.isEmpty)
-        XCTAssertEqual(history.statusText, "Waiting for copied text")
     }
 
     func testExplicitComparisonPairReplacesHistoryAndCaptureContinues() {
