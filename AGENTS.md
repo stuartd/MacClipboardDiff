@@ -20,6 +20,7 @@ Keep it small. This is not an App Store product, not a cloud service, and not a 
 - `clipdiff/ShortcutSettingsWindowController.swift`: native global-shortcut recorder window.
 - `clipdiff/ShortcutRecorderControl.swift`: focus-aware AppKit shortcut capture control.
 - `clipdiff/ClipDiffApplicationDelegate.swift`: routes files opened by the Finder extension into the controller.
+- `clipdiff/LoginItemManager.swift`: native Start at Login registration, the one-time prompt, and quiet-launch detection.
 - `clipdiff/DiffEngine.swift`: text splitting, diff row generation, summaries, and copyable unified diff output.
 - `clipdiff/ClipboardModels.swift`: clipboard entry, diff row/document, summary, view mode, and text-line models.
 - `clipdiff/DiffWindowController.swift`: AppKit window wrapper for the SwiftUI diff view.

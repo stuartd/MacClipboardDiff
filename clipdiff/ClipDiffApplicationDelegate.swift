@@ -36,7 +36,15 @@ final class ClipDiffApplicationDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         if let controller {
+            // The initial Apple event is available during this callback, before
+            // the run-loop callback below. Login/service launches stay quiet.
+            if LoginItemLaunchContext.isAutomaticLaunch(NSAppleEventManager.shared().currentAppleEvent) {
+                controller.loginItemManager.suppressAutomaticPrompt()
+            }
             controller.startGlobalShortcut()
+            // Wait for initial file-open events and let the launch finish. Use a
+            // run-loop callback so an alert doesn't block main-queue work.
+            perform(#selector(promptToStartAtLogin), with: nil, afterDelay: 0)
         } else if let startupError {
             reportStartupFailure(startupError)
         } else {
@@ -44,11 +52,17 @@ final class ClipDiffApplicationDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
+    @objc private func promptToStartAtLogin() {
+        guard NSApp.modalWindow == nil else { return }
+        controller?.loginItemManager.promptIfNeeded()
+    }
+
     func application(_ application: NSApplication, open urls: [URL]) {
         guard let controller else {
             pendingOpenRequests.append(urls)
             return
         }
+        controller.loginItemManager.suppressAutomaticPrompt()
         if urls.count == 1, urls[0].scheme?.lowercased() == FinderComparisonRequest.scheme {
             guard let request = FinderComparisonRequest(url: urls[0]) else { return }
             switch request.operation {

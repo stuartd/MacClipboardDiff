@@ -14,6 +14,18 @@ ClipDiff runs one instance per user. Launching it again activates the running
 instance and exits the duplicate without requesting a diff. To switch to a newly
 built version, quit the running app first; quitting discards its captured text.
 
+On its first ordinary launch, ClipDiff asks whether to **Start at Login**. Either
+answer is remembered; the menu toggle lets you change it later. If first launched
+for a Finder comparison, the question waits until the next ordinary launch.
+Login launches stay quiet, showing only the menu bar icon. The toggle follows
+the actual macOS setting, including changes made in System Settings. If macOS
+requires approval, the menu says so and offers **Open Login Items…**.
+
+Turning off **Start at Login** affects future sign-ins. **Quit ClipDiff** ends the
+current session, and **Monitor Clipboard** controls capture while the app runs.
+Enable startup from the Release app at a stable location, rather than a temporary
+Xcode build, so macOS can find that copy at login.
+
 ## Workflow
 
 1. Copy the older text or file.
@@ -118,7 +130,7 @@ The built-in viewer keeps the memory-only privacy model. Selecting an external v
 
 After confirmation, each comparison writes two read-only UTF-8 plaintext files to a unique directory below the system temporary directory. ClipDiff attempts to delete that directory after the launched comparison process exits, when ClipDiff exits, and on its next launch. Cleanup is best effort: a crash, power loss, open file handle, or external application may leave or retain a copy. Do not select an external viewer when that disk exposure is unacceptable.
 
-Only the selected executable path, the one-time warning acknowledgement, and the chosen global shortcut are stored in app preferences. Clipboard text, previews, diffs, and source paths are never stored there.
+Only the selected executable path, the one-time warning acknowledgement, the chosen global shortcut, and whether the Start at Login question was handled are stored in app preferences. macOS manages the login-item registration. Clipboard text, previews, diffs, and source paths are never stored there.
 
 ## Tests
 
@@ -129,6 +141,13 @@ disambiguation, version formatting, and line-based diff behavior:
 ```sh
 swift test
 ```
+
+Login-item tests use fake services and presenters to cover the one-time prompt,
+menu changes, external setting changes, approval, failures, and quiet automatic
+or Finder launches. After building, check the first-launch question and menu
+toggle, change the setting in System Settings and reopen the menu, then sign out
+and back in to verify a quiet launch. Declining the question or turning startup
+off should not cause another question on later launches.
 
 For Finder changes, also build the app and extension on macOS with `scripts/create-local-release.sh`, then smoke-test one-file captured-text/captured-file comparisons, the visible no-capture message, paused monitoring, unchanged clipboard, same-basename labels, unsupported selections, two-file cold start, and external-viewer warning/fallback.
 

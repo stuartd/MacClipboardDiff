@@ -13,6 +13,8 @@ final class ClipDiffController: ObservableObject {
     @Published private(set) var externalDiffTools: [ExternalDiffToolChoice]
     @Published var viewMode: DiffViewMode = .sideBySide
 
+    let loginItemManager = LoginItemManager()
+
     private let clipboard: ClipboardStore
     private let fileReader: CopiedFileTextReader
     private let history: ClipboardHistory
@@ -31,7 +33,7 @@ final class ClipDiffController: ObservableObject {
     private var shortcutSettingsWindowController: ShortcutSettingsWindowController?
     private var hotKeyController: HotKeyController?
     private var applicationWillTerminateObserver: NSObjectProtocol?
-    private var finderIntegrationStatusObserver: AnyCancellable?
+    private var systemSettingsStatusObserver: AnyCancellable?
 
     convenience init() {
         self.init(clipboard: SystemClipboardStore())
@@ -59,11 +61,12 @@ final class ClipDiffController: ObservableObject {
         // A menu-bar menu can open without activating this accessory app. Keep
         // this subscription on the controller so it also works before SwiftUI
         // constructs the menu and while clipboard monitoring is paused.
-        finderIntegrationStatusObserver = NotificationCenter.default
+        systemSettingsStatusObserver = NotificationCenter.default
             .publisher(for: NSApplication.didBecomeActiveNotification)
             .merge(with: NotificationCenter.default.publisher(for: NSMenu.didBeginTrackingNotification))
             .sink { [weak self] _ in
                 self?.refreshFinderIntegrationStatus()
+                self?.loginItemManager.refreshStatus()
             }
 
         applicationWillTerminateObserver = NotificationCenter.default.addObserver(

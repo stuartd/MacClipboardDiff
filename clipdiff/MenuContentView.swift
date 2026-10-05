@@ -43,6 +43,8 @@ struct MenuContentView: View {
                 Label("Monitor Clipboard", systemImage: "dot.radiowaves.left.and.right")
             }
 
+            StartAtLoginMenuContent(manager: controller.loginItemManager)
+
             Button {
                 controller.clearCapturedText()
             } label: {
@@ -131,6 +133,25 @@ struct MenuContentView: View {
             Label(title, systemImage: "checkmark")
         } else {
             Text(title)
+        }
+    }
+}
+
+private struct StartAtLoginMenuContent: View {
+    @ObservedObject var manager: LoginItemManager
+
+    var body: some View {
+        Toggle(
+            manager.requiresApproval ? "Start at Login (approval required)" : "Start at Login",
+            isOn: Binding(
+                get: { manager.isRequested },
+                set: { manager.setEnabled($0) }
+            )
+        )
+        if manager.requiresApproval {
+            Button("Open Login Items…") {
+                manager.openSystemSettings()
+            }
         }
     }
 }

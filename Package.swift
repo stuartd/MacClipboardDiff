@@ -43,6 +43,7 @@ let package = Package(
                 "GlobalShortcut.swift",
                 "GlobalShortcutValidator.swift",
                 "HotKeyController.swift",
+                "LoginItemManager.swift",
                 "ShortcutRecorderControl.swift",
                 "SingleInstanceLock.swift"
             ]
