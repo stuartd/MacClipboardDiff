@@ -7,21 +7,18 @@ struct FinderSingleFileRequestState {
         fileprivate let generation: UUID
         let expectedCurrentEntryID: UUID
         let pasteboardChangeCount: Int
-        let wasMonitoring: Bool
     }
 
     private(set) var activeToken: Token?
 
     mutating func begin(
         currentEntryID: UUID,
-        pasteboardChangeCount: Int,
-        isMonitoring: Bool
+        pasteboardChangeCount: Int
     ) -> Token {
         let token = Token(
             generation: UUID(),
             expectedCurrentEntryID: currentEntryID,
-            pasteboardChangeCount: pasteboardChangeCount,
-            wasMonitoring: isMonitoring
+            pasteboardChangeCount: pasteboardChangeCount
         )
         activeToken = token
         return token
@@ -34,14 +31,12 @@ struct FinderSingleFileRequestState {
     mutating func consumeIfValid(
         _ token: Token,
         currentEntryID: UUID?,
-        pasteboardChangeCount: Int,
-        isMonitoring: Bool
+        pasteboardChangeCount: Int
     ) -> Bool {
         guard activeToken == token else { return false }
         activeToken = nil
         guard currentEntryID == token.expectedCurrentEntryID,
-              isMonitoring == token.wasMonitoring,
-              (!isMonitoring || pasteboardChangeCount == token.pasteboardChangeCount) else {
+              pasteboardChangeCount == token.pasteboardChangeCount else {
             return false
         }
         return true

@@ -21,8 +21,10 @@ Login launches stay quiet, showing only the menu bar icon. The toggle follows
 the actual macOS setting, including changes made in System Settings. If macOS
 requires approval, the menu says so and offers **Open Login Items…**.
 
-Turning off **Start at Login** affects future sign-ins. **Quit ClipDiff** ends the
-current session, and **Monitor Clipboard** controls capture while the app runs.
+Turning off **Start at Login** affects future sign-ins. ClipDiff captures clipboard
+changes whenever it is running. **Quit ClipDiff** stops capture and discards the
+captured text. **Clear Captured Text** discards the current captures and keeps the
+app ready for future copies.
 Enable startup from the Release app at a stable location, rather than a temporary
 Xcode build, so macOS can find that copy at login.
 
@@ -39,7 +41,7 @@ Custom shortcuts must include Option or Control; Command and Shift are optional.
 
 ## Finder Context Menu
 
-The app includes a Finder Sync extension. Choose **Enable Finder menu…** in the ClipDiff menu and enable **ClipDiff Finder Integration** in macOS System Settings. With exactly one regular file selected, Finder shows **Compare with current ClipDiff capture**. It reads the selected file only after invocation, moves the current in-memory capture to **Previous**, makes the selected file **Current**, and opens the configured viewer without changing the clipboard. This works while monitoring is paused if a capture remains. If there is no capture (including after a cold start), ClipDiff activates and explains that text or a file must first be copied while monitoring.
+The app includes a Finder Sync extension. Choose **Finder Menu Settings…** in the ClipDiff menu to open macOS System Settings, then enable or disable **ClipDiff Finder Integration** there. With exactly one regular file selected, Finder shows **Compare with current ClipDiff capture**. It reads the selected file only after invocation, moves the current in-memory capture to **Previous**, makes the selected file **Current**, and opens the configured viewer without changing the clipboard. If there is no capture (including after a cold start), ClipDiff activates and explains that text or a file must first be copied while the app is running.
 
 With exactly two regular files selected, Finder shows **Compare two selected files with ClipDiff**. Choosing it opens ClipDiff if necessary, reads and classifies the pair, replaces the in-memory comparison pair, and immediately shows the diff; the first Finder selection is **Previous** and the second is **Current**. Binary and otherwise unusable files use the documented filename-and-reason fallback. Zero, more than two, or any folder/non-regular selection shows neither command.
 
@@ -149,6 +151,6 @@ toggle, change the setting in System Settings and reopen the menu, then sign out
 and back in to verify a quiet launch. Declining the question or turning startup
 off should not cause another question on later launches.
 
-For Finder changes, also build the app and extension on macOS with `scripts/create-local-release.sh`, then smoke-test one-file captured-text/captured-file comparisons, the visible no-capture message, paused monitoring, unchanged clipboard, same-basename labels, unsupported selections, two-file cold start, and external-viewer warning/fallback.
+For Finder changes, also build the app and extension on macOS with `scripts/create-local-release.sh`, then smoke-test one-file captured-text/captured-file comparisons, the visible no-capture message, capture continuing after a comparison, unchanged clipboard, same-basename labels, unsupported selections, two-file cold start, and external-viewer warning/fallback.
 
 For external-viewer labels, compare two files with the same basename in different folders in Beyond Compare or Meld. Confirm the panes show the shortest distinguishing source labels, including names containing spaces or Unicode. Also check plain-text captures still show **Previous clipboard** and **Current clipboard**.

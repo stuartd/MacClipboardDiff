@@ -75,17 +75,15 @@ final class ClipboardHistoryTests: XCTestCase {
         XCTAssertEqual(history.entries.map(\.text), ["kept"])
     }
 
-    func testPausedMonitoringLeavesHistoryUntouchedAndResumeSetsBaseline() {
+    func testCaptureContinuesAfterClearingHistory() {
         let history = ClipboardHistory()
         history.apply(text(1, "first"))
-        history.pause()
+        history.clearCapturedText()
 
-        XCTAssertEqual(history.apply(text(2, "ignored")), .none)
-        history.resume(currentChangeCount: 8)
-        XCTAssertEqual(history.apply(text(8, "also ignored")), .none)
-        XCTAssertEqual(history.apply(text(9, "accepted")), .accepted)
+        XCTAssertEqual(history.apply(text(1, "first")), .none)
+        XCTAssertEqual(history.apply(text(2, "next")), .accepted)
 
-        XCTAssertEqual(history.entries.map(\.text), ["accepted", "first"])
+        XCTAssertEqual(history.entries.map(\.text), ["next"])
     }
 
     func testRecentExplicitClearRemovesOnlyLatestEligibleEntry() {
@@ -148,10 +146,9 @@ final class ClipboardHistoryTests: XCTestCase {
         XCTAssertEqual(history.statusText, "Waiting for copied text")
     }
 
-    func testExplicitComparisonPairWorksWhileMonitoringIsPaused() {
+    func testExplicitComparisonPairReplacesHistoryAndCaptureContinues() {
         let history = ClipboardHistory()
         history.apply(text(1, "discarded"))
-        history.pause()
 
         history.replaceComparisonPair(
             previous: CapturedClipboardValue(
@@ -171,7 +168,10 @@ final class ClipboardHistoryTests: XCTestCase {
         XCTAssertEqual(history.previousEntry?.sourceFileName, "old.txt")
         XCTAssertEqual(history.currentEntry?.sourceFileName, "new.txt")
         XCTAssertTrue(history.canDiff)
-        XCTAssertFalse(history.isMonitoring)
+
+        XCTAssertEqual(history.apply(text(2, "later copy")), .accepted)
+        XCTAssertEqual(history.entries.map(\.text), ["later copy", "new"])
+        XCTAssertEqual(history.previousEntry?.sourceFileName, "new.txt")
     }
 
     func testSingleFinderComparisonPreservesCapturedEntryAndDropsOlderEntry() throws {

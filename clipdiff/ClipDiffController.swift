@@ -8,7 +8,6 @@ final class ClipDiffController: ObservableObject {
     @Published private(set) var activeDiff: DiffDocument?
     @Published private(set) var lastError: String?
     @Published private(set) var isGlobalShortcutAvailable = false
-    @Published private(set) var isFinderIntegrationEnabled = FIFinderSyncController.isExtensionEnabled
     @Published private(set) var globalShortcut: GlobalShortcut
     @Published private(set) var externalDiffTools: [ExternalDiffToolChoice]
     @Published var viewMode: DiffViewMode = .sideBySide
@@ -60,12 +59,11 @@ final class ClipDiffController: ObservableObject {
 
         // A menu-bar menu can open without activating this accessory app. Keep
         // this subscription on the controller so it also works before SwiftUI
-        // constructs the menu and while clipboard monitoring is paused.
+        // constructs the menu.
         systemSettingsStatusObserver = NotificationCenter.default
             .publisher(for: NSApplication.didBecomeActiveNotification)
             .merge(with: NotificationCenter.default.publisher(for: NSMenu.didBeginTrackingNotification))
             .sink { [weak self] _ in
-                self?.refreshFinderIntegrationStatus()
                 self?.loginItemManager.refreshStatus()
             }
 
@@ -104,26 +102,6 @@ final class ClipDiffController: ObservableObject {
         history.canDiff
     }
 
-    var isMonitoring: Bool {
-        get {
-            history.isMonitoring
-        }
-        set {
-            guard newValue != history.isMonitoring else { return }
-
-            objectWillChange.send()
-            cancelPendingFileRead()
-            cancelPendingFinderRead()
-            lastRequestedChangeCount = clipboard.changeCount
-
-            if newValue {
-                history.resume(currentChangeCount: lastRequestedChangeCount)
-            } else {
-                history.pause()
-            }
-        }
-    }
-
     var selectedExternalDiffTool: ExternalDiffToolChoice? {
         guard let selectedPath = externalDiffSettings.selectedExecutablePath else {
             return nil
@@ -135,12 +113,6 @@ final class ClipDiffController: ObservableObject {
 
     var diffViewerName: String {
         selectedExternalDiffTool?.displayName ?? "Built-in viewer"
-    }
-
-    private func refreshFinderIntegrationStatus() {
-        let enabled = FIFinderSyncController.isExtensionEnabled
-        guard enabled != isFinderIntegrationEnabled else { return }
-        isFinderIntegrationEnabled = enabled
     }
 
     func showDiff() {
@@ -272,8 +244,7 @@ final class ClipDiffController: ObservableObject {
         lastRequestedChangeCount = clipboard.changeCount
         let token = singleFileRequestState.begin(
             currentEntryID: capturedEntry.id,
-            pasteboardChangeCount: lastRequestedChangeCount,
-            isMonitoring: history.isMonitoring
+            pasteboardChangeCount: lastRequestedChangeCount
         )
         let fileReader = self.fileReader
 
@@ -386,8 +357,6 @@ final class ClipDiffController: ObservableObject {
     }
 
     private func readPasteboardIfNeeded() {
-        guard history.isMonitoring else { return }
-
         let changeCount = clipboard.changeCount
         guard changeCount != lastRequestedChangeCount else { return }
 
@@ -461,8 +430,7 @@ final class ClipDiffController: ObservableObject {
     ) {
         guard pendingFileReadChangeCount == changeCount,
               lastRequestedChangeCount == changeCount,
-              clipboard.changeCount == changeCount,
-              history.isMonitoring else {
+              clipboard.changeCount == changeCount else {
             return
         }
 
@@ -503,8 +471,7 @@ final class ClipDiffController: ObservableObject {
     ) {
         guard pendingFileReadChangeCount == changeCount,
               lastRequestedChangeCount == changeCount,
-              clipboard.changeCount == changeCount,
-              history.isMonitoring else {
+              clipboard.changeCount == changeCount else {
             return
         }
 
@@ -562,8 +529,7 @@ final class ClipDiffController: ObservableObject {
               singleFileRequestState.consumeIfValid(
                 token,
                 currentEntryID: currentEntry?.id,
-                pasteboardChangeCount: clipboard.changeCount,
-                isMonitoring: history.isMonitoring
+                pasteboardChangeCount: clipboard.changeCount
               ),
               history.compareCurrentEntry(
                 expectedID: token.expectedCurrentEntryID,
@@ -611,7 +577,7 @@ final class ClipDiffController: ObservableObject {
 
     private func presentNoCurrentCaptureMessage() {
         cancelPendingFinderRead()
-        let message = "Copy some text or a file while ClipDiff is monitoring, then try again."
+        let message = "Copy some text or a file while ClipDiff is running, then try again."
         lastError = message
         NSApplication.shared.activate(ignoringOtherApps: true)
         let alert = NSAlert()

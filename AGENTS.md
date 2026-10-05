@@ -57,6 +57,7 @@ Select the `clipdiff` scheme, choose **My Mac**, and press `Cmd-R`.
 
 - Keep the app native: Swift, SwiftUI, AppKit, Carbon hotkeys, Foundation, and `NSPasteboard`.
 - Preserve the in-memory privacy model. Captured text, decoded file contents, and source paths should not be written to disk, uploaded, logged, indexed, or retained after quitting.
+- Capture clipboard changes whenever ClipDiff is running. Use **Quit ClipDiff** to stop capture and discard the current session; do not add a pause toggle.
 - Capture plain text plus one or two copied file URLs. Treat separate copy events as separate entries even when their text is identical, and continue ignoring unsupported non-text clipboard changes.
 - Keep full source paths only on the corresponding two-entry history. Resolve display labels before creating a diff document, then drop the paths from that document.
 - Keep copied-file reads bounded, off the main actor, and superseded by newer pasteboard changes.
@@ -93,7 +94,7 @@ Manual smoke test after changes:
 9. Copy exactly two text files together and verify their Finder order becomes previous/current.
 10. Copy a binary, empty, directory, and oversized file and verify the fallback reason.
 11. Change the global shortcut, verify the new shortcut works and the old one does not, then restore the default.
-12. Enable the Finder extension, select one regular file, and verify **Compare with current ClipDiff capture** compares a retained capture as Previous with that file as Current without changing the clipboard. Check the visible no-capture message, paused monitoring, same-basename labels, and binary fallback.
+12. Open **Finder Menu Settings…**, enable the Finder extension in macOS System Settings, select one regular file, and verify **Compare with current ClipDiff capture** compares a retained capture as Previous with that file as Current without changing the clipboard. Check the visible no-capture message, capture continuing after a comparison, same-basename labels, and binary fallback.
 13. Select exactly two regular files and verify **Compare two selected files with ClipDiff** opens their diff, including on cold start. Verify both commands are absent for zero, more than two, folders, and special files, and check the external-viewer warning/fallback.
 
 For pure diff changes, verify added, removed, changed, unchanged, blank-line, and trailing-newline cases.

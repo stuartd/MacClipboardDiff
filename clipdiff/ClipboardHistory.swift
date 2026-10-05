@@ -4,7 +4,6 @@ final class ClipboardHistory {
     static let defaultRecentClearWindow: TimeInterval = 60
 
     private(set) var entries: [ClipboardEntry] = []
-    private(set) var isMonitoring = true
     private(set) var lastChangeCount: Int
 
     private let recentClearWindow: TimeInterval
@@ -31,10 +30,6 @@ final class ClipboardHistory {
     }
 
     var statusText: String {
-        if !isMonitoring {
-            return "Monitoring paused"
-        }
-
         switch entries.count {
         case 0:
             return "Waiting for copied text"
@@ -47,7 +42,6 @@ final class ClipboardHistory {
 
     @discardableResult
     func apply(_ observation: ClipboardObservation) -> ClipboardHistoryChange {
-        guard isMonitoring else { return .none }
         guard observation.changeCount != lastChangeCount else { return .none }
 
         lastChangeCount = observation.changeCount
@@ -81,17 +75,6 @@ final class ClipboardHistory {
             clearEligibility = nil
             return .none
         }
-    }
-
-    func pause() {
-        isMonitoring = false
-        clearEligibility = nil
-    }
-
-    func resume(currentChangeCount: Int) {
-        isMonitoring = true
-        lastChangeCount = currentChangeCount
-        clearEligibility = nil
     }
 
     func clearCapturedText() {

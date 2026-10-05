@@ -28,20 +28,12 @@ struct MenuContentView: View {
                 controller.showFinderIntegrationSettings()
             } label: {
                 Label(
-                    controller.isFinderIntegrationEnabled
-                        ? "Finder menu: Enabled…"
-                        : "Enable Finder menu…",
-                    systemImage: controller.isFinderIntegrationEnabled
-                        ? "checkmark.circle"
-                        : "puzzlepiece.extension"
+                    "Finder Menu Settings…",
+                    systemImage: "puzzlepiece.extension"
                 )
             }
 
             diffViewerMenu
-
-            Toggle(isOn: $controller.isMonitoring) {
-                Label("Monitor Clipboard", systemImage: "dot.radiowaves.left.and.right")
-            }
 
             StartAtLoginMenuContent(manager: controller.loginItemManager)
 
