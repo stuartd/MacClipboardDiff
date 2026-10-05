@@ -31,6 +31,9 @@ final class ShortcutRecorderControlTests: XCTestCase {
         XCTAssertTrue(window.makeFirstResponder(recorder))
         XCTAssertTrue(recorder.performKeyEquivalent(with: event))
         XCTAssertEqual(recordings, [GlobalShortcut(keyCode: 12, modifiers: [.command])!])
+        // Keep rejected bindings visible so the picker can explain why Save is disabled.
+        let checker = GlobalShortcutValidator(systemShortcuts: { .success([]) }, mainMenu: { nil })
+        XCTAssertEqual(checker.error(for: recordings[0]), .requiresOptionOrControl)
 
         // Carbon consumes the currently registered key before AppKit sees it.
         // The global callback can feed that key back to the focused recorder.

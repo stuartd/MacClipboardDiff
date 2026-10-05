@@ -4,6 +4,39 @@ import XCTest
 
 @MainActor
 final class HotKeyControllerTests: XCTestCase {
+    func testCommandOnlyBindingIsRejectedAtStartupAndDefaultCanBeRestored() async throws {
+        let checker = GlobalShortcutValidator(systemShortcuts: { .success([]) }, mainMenu: { nil })
+        for modifiers: GlobalShortcut.Modifiers in [[.command], [.command, .shift]] {
+            let shortcut = try XCTUnwrap(GlobalShortcut(keyCode: 1, modifiers: modifiers))
+            let backend = FakeHotKeyBackend()
+            let controller = HotKeyController(
+                shortcut: shortcut, backend: backend, validate: { checker.error(for: $0) }, action: {})
+            XCTAssertFalse(controller.isRegistered)
+            XCTAssertNil(controller.registeredShortcut)
+            XCTAssertEqual(controller.lastError, .requiresOptionOrControl)
+            XCTAssertEqual(backend.events, ["install"])
+            XCTAssertTrue(controller.updateShortcut(.defaultShortcut))
+            XCTAssertEqual(controller.registeredShortcut, .defaultShortcut)
+            XCTAssertNil(controller.lastError)
+            XCTAssertEqual(backend.events, ["install", "register"])
+        }
+    }
+
+    func testCommandOnlyReplacementKeepsTheWorkingShortcutWithoutRegistering() async throws {
+        let checker = GlobalShortcutValidator(systemShortcuts: { .success([]) }, mainMenu: { nil })
+        let backend = FakeHotKeyBackend()
+        let controller = HotKeyController(
+            shortcut: .defaultShortcut, backend: backend, validate: { checker.error(for: $0) }, action: {})
+        for modifiers: GlobalShortcut.Modifiers in [[.command], [.command, .shift]] {
+            let shortcut = try XCTUnwrap(GlobalShortcut(keyCode: 1, modifiers: modifiers))
+            XCTAssertFalse(controller.updateShortcut(shortcut))
+            XCTAssertTrue(controller.isRegistered)
+            XCTAssertEqual(controller.registeredShortcut, .defaultShortcut)
+            XCTAssertEqual(controller.lastError, .requiresOptionOrControl)
+            XCTAssertEqual(backend.events, ["install", "register"])
+        }
+    }
+
     func testStartupConflictIsRejectedBeforeRegistrationAndCanBeRetried() async {
         let backend = FakeHotKeyBackend()
         var conflict: GlobalShortcutError? = .systemShortcut

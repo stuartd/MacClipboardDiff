@@ -23,7 +23,7 @@ built version, quit the running app first; quitting discards its captured text.
 
 You can also copy exactly two files together in Finder. ClipDiff immediately treats the first file as **Previous** and the second as **Current**.
 
-The shortcut recorder checks enabled macOS system shortcuts and ClipDiff’s own menu commands. The same checks run at startup before registering the saved shortcut. It explains known conflicts and registration failures, and keeps the current shortcut active if a replacement fails. While the recorder has focus, pressing the current shortcut records it instead of opening a diff. **Use Default** selects `Option-Command-C`; **Save** applies it, and **Cancel** leaves the saved shortcut unchanged. These checks cannot identify every shortcut used inside other apps.
+Custom shortcuts must include Option or Control; Command and Shift are optional. The shortcut recorder checks enabled macOS system shortcuts and ClipDiff’s own menu commands. The same checks run at startup before registering the saved shortcut. It explains known conflicts and registration failures, and keeps the current shortcut active if a replacement fails. While the recorder has focus, pressing the current shortcut records it instead of opening a diff. **Use Default** selects `Option-Command-C`; **Save** applies it, and **Cancel** leaves the saved shortcut unchanged. These checks cannot identify every shortcut used inside other apps.
 
 ## Finder Context Menu
 
