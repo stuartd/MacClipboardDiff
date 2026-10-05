@@ -48,9 +48,5 @@ if [[ -d "$FINDER_EXTENSION" ]]; then
 fi
 
 echo
-echo "Opening $OUTPUT_APP..."
-open -n -a "$OUTPUT_APP"
-
-echo
 echo "Release artifact:"
 echo "App: $OUTPUT_APP"
