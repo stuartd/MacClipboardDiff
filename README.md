@@ -43,17 +43,18 @@ Custom shortcuts must include Option or Control; Command and Shift are optional.
 
 The app includes a Finder Sync extension. Choose **Finder Menu Settings…** in the ClipDiff menu to open macOS System Settings, then enable or disable **ClipDiff Finder Integration** there. With exactly one regular file selected, Finder shows **Compare with current ClipDiff capture**. It reads the selected file only after invocation, moves the current in-memory capture to **Previous**, makes the selected file **Current**, and opens the configured viewer without changing the clipboard. If there is no capture (including after a cold start), ClipDiff activates and explains that text or a file must first be copied while the app is running.
 
-With exactly two regular files selected, Finder shows **Compare two selected files with ClipDiff**. Choosing it opens ClipDiff if necessary, reads and classifies the pair, replaces the in-memory comparison pair, and immediately shows the diff; the first Finder selection is **Previous** and the second is **Current**. Binary and otherwise unusable files use the documented filename-and-reason fallback. Zero, more than two, or any folder/non-regular selection shows neither command.
+With exactly two regular files selected, Finder shows **Compare two selected files with ClipDiff**. Choosing it opens ClipDiff if necessary, reads and classifies the pair, replaces the in-memory comparison pair, and immediately shows the diff; the first Finder selection is **Previous** and the second is **Current**. A comparison containing a binary file leaves the current captures untouched. Other unusable files use the documented filename-and-reason fallback. Zero, more than two, or any folder/non-regular selection shows neither command.
 
 ## Copied Files
 
 Finder file URLs take precedence over incidental path text on the pasteboard. A single copied file becomes one capture; exactly two copied files atomically replace the comparison pair; copies containing more than two files are ignored.
 
+Binary files, including ZIP archives, are ignored without changing the current captures. If either file in a copied pair is binary, the entire copy is ignored.
+
 For a usable text file, ClipDiff reads and retains the complete decoded contents in memory. It supports UTF-8, BOM-marked UTF-16 and UTF-32, common BOM-less UTF-16, and Windows-1252. Files larger than 16 MiB are not read.
 
-An unusable file contributes its filename followed by a reason:
+Other unusable files contribute their filename followed by a reason:
 
-- `(binary file)`
 - `(directory)`
 - `(empty file)`
 - `(file not found)`

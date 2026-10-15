@@ -92,9 +92,9 @@ Manual smoke test after changes:
 7. Quit ClipDiff, reopen it, and confirm **Show Diff** stays disabled until two new values are copied.
 8. Copy one text file, then another, and verify filenames appear in both diff modes.
 9. Copy exactly two text files together and verify their Finder order becomes previous/current.
-10. Copy a binary, empty, directory, and oversized file and verify the fallback reason.
+10. Copy a binary file (alone and paired with a text file) and verify the captures stay unchanged. Copy an empty file, directory, and oversized file and verify the fallback reason.
 11. Change the global shortcut, verify the new shortcut works and the old one does not, then restore the default.
-12. Open **Finder Menu Settings…**, enable the Finder extension in macOS System Settings, select one regular file, and verify **Compare with current ClipDiff capture** compares a retained capture as Previous with that file as Current without changing the clipboard. Check the visible no-capture message, capture continuing after a comparison, same-basename labels, and binary fallback.
+12. Open **Finder Menu Settings…**, enable the Finder extension in macOS System Settings, select one regular file, and verify **Compare with current ClipDiff capture** compares a retained capture as Previous with that file as Current without changing the clipboard. Check the visible no-capture message, capture continuing after a comparison, same-basename labels, and binary files leaving captures unchanged.
 13. Select exactly two regular files and verify **Compare two selected files with ClipDiff** opens their diff, including on cold start. Verify both commands are absent for zero, more than two, folders, and special files, and check the external-viewer warning/fallback.
 
 For pure diff changes, verify added, removed, changed, unchanged, blank-line, and trailing-newline cases.

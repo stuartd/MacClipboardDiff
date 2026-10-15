@@ -109,12 +109,7 @@ nonisolated struct CopiedFileTextReader: Sendable {
         }
 
         if Self.knownBinaryExtensions.contains(standardizedURL.pathExtension.lowercased()) {
-            return invalidFile(
-                fileName: fileName,
-                filePath: path,
-                reason: "binary file",
-                usesFallback: usesFallback
-            )
+            return nil
         }
 
         guard FileManager.default.isReadableFile(atPath: path) else {
@@ -168,12 +163,7 @@ nonisolated struct CopiedFileTextReader: Sendable {
                 )
             }
             guard let text = decodeText(data) else {
-                return invalidFile(
-                    fileName: fileName,
-                    filePath: path,
-                    reason: "binary file",
-                    usesFallback: usesFallback
-                )
+                return nil
             }
             guard !text.isEmpty else {
                 return invalidFile(

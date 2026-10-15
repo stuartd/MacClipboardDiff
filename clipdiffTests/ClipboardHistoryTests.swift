@@ -66,13 +66,19 @@ final class ClipboardHistoryTests: XCTestCase {
         XCTAssertEqual(history.currentEntry?.text, " \t\r\n")
     }
 
-    func testNonTextObservationLeavesHistoryUntouched() {
+    func testNonTextObservationPreservesComparisonPairAndCaptureContinues() {
         let history = ClipboardHistory()
-        history.apply(text(1, "kept"))
+        history.apply(text(1, "older"))
+        history.apply(text(2, "newer"))
+        let entries = history.entries
 
-        history.apply(observation(2, content: .nonText))
+        XCTAssertEqual(history.apply(observation(3, content: .nonText)), .none)
 
-        XCTAssertEqual(history.entries.map(\.text), ["kept"])
+        XCTAssertEqual(history.entries, entries)
+        XCTAssertTrue(history.canDiff)
+
+        XCTAssertEqual(history.apply(text(4, "next copy")), .accepted)
+        XCTAssertEqual(history.entries.map(\.text), ["next copy", "newer"])
     }
 
     func testRecentExplicitClearRemovesOnlyLatestEligibleEntry() {

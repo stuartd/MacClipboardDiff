@@ -60,12 +60,12 @@ final class CopiedFileTextReaderTests: XCTestCase {
         XCTAssertEqual(result?.text, "café")
     }
 
-    func testBinaryContentUsesFilenameFallbackEvenWithTextExtension() throws {
+    func testBinaryContentIsIgnoredEvenWithTextExtension() throws {
         let url = try write("misleading.txt", data: Data([0x01, 0x00, 0x02, 0x7F]))
 
         let result = CopiedFileTextReader().readFile(at: url)
 
-        XCTAssertEqual(result?.text, "misleading.txt (binary file)")
+        XCTAssertNil(result)
     }
 
     func testKnownBinaryExtensionIsNeverDecodedAsText() throws {
@@ -73,7 +73,28 @@ final class CopiedFileTextReaderTests: XCTestCase {
 
         let result = CopiedFileTextReader().readFile(at: url)
 
-        XCTAssertEqual(result?.text, "library.dylib (binary file)")
+        XCTAssertNil(result)
+    }
+
+    func testCopiedArchiveIsIgnored() async throws {
+        let archive = try write("ClipDiff.Stress-source.ZIP", text: "looks harmless")
+
+        let values = await CopiedFileTextReader().readValues(from: [archive])
+
+        XCTAssertTrue(values.isEmpty)
+    }
+
+    func testCopyContainingBinaryFileIsIgnoredAsAWhole() async throws {
+        let text = try write("source.txt", text: "source contents")
+        let archive = try write("source.zip", data: Data([0x50, 0x4B, 0x03, 0x04]))
+        let binary = try write("misleading.txt", data: Data([0x01, 0x00, 0x02, 0x7F]))
+        let reader = CopiedFileTextReader()
+
+        for fileURLs in [[text, archive], [archive, text], [text, binary], [binary, text], [archive, binary]] {
+            let values = await reader.readValues(from: fileURLs)
+
+            XCTAssertTrue(values.isEmpty)
+        }
     }
 
     func testByteOrderMarkOnlyFileUsesEmptyFallback() throws {
