@@ -5,6 +5,8 @@ import UniformTypeIdentifiers
 final class FinderSyncExtension: FIFinderSync {
     private static let pairMenuTitle = "Compare two selected files with ClipDiff"
     private static let currentMenuTitle = "Compare with current ClipDiff capture"
+    private var captureIdentity: FinderCaptureIdentity?
+    private weak var comparisonMenu: NSMenu?
 
     override init() {
         super.init()
@@ -15,12 +17,27 @@ final class FinderSyncExtension: FIFinderSync {
         FIFinderSyncController.default().directoryURLs = [
             URL(fileURLWithPath: "/", isDirectory: true)
         ]
+
+        DistributedNotificationCenter.default().addObserver(
+            self,
+            selector: #selector(captureIdentityChanged(_:)),
+            name: FinderCaptureIdentity.changedNotification,
+            object: nil,
+            suspensionBehavior: .deliverImmediately
+        )
+        requestCaptureIdentity()
+    }
+
+    deinit {
+        DistributedNotificationCenter.default().removeObserver(self)
     }
 
     override func menu(for menuKind: FIMenuKind) -> NSMenu? {
+        // Refresh the cache without blocking Finder, including after an app restart.
+        requestCaptureIdentity()
         guard menuKind == .contextualMenuForItems,
               let urls = FIFinderSyncController.default().selectedItemURLs(),
-              let operation = Self.operation(for: urls) else {
+              let operation = operation(for: urls) else {
             return nil
         }
 
@@ -32,12 +49,13 @@ final class FinderSyncExtension: FIFinderSync {
         )
         item.target = self
         menu.addItem(item)
+        comparisonMenu = menu
         return menu
     }
 
     @objc private func compareSelectedFiles(_ sender: NSMenuItem) {
         guard let urls = FIFinderSyncController.default().selectedItemURLs(),
-              let operation = Self.operation(for: urls) else {
+              let operation = operation(for: urls) else {
             NSSound.beep()
             return
         }
@@ -74,8 +92,45 @@ final class FinderSyncExtension: FIFinderSync {
         case compareWithCurrent = "compare-with-current"
     }
 
-    private static func operation(for urls: [URL]) -> Operation? {
+    @objc private func captureIdentityChanged(_ notification: Notification) {
+        guard let identity = FinderCaptureIdentity(notificationObject: notification.object),
+              let application = NSRunningApplication(processIdentifier: identity.processIdentifier),
+              application.bundleIdentifier == "stuartd.clipdiff",
+              !application.isTerminated else { return }
+        if let current = captureIdentity,
+           current.processIdentifier == identity.processIdentifier,
+           current.sessionID == identity.sessionID,
+           current.revision >= identity.revision { return }
+        captureIdentity = identity
+        // The extension can start on the first right-click. Apply the initial
+        // reply to that open menu too, rather than waiting for a second click.
+        if let urls = FIFinderSyncController.default().selectedItemURLs(),
+           urls.count == 1, identity.matches(urls[0]) {
+            comparisonMenu?.removeAllItems()
+        }
+    }
+
+    private func requestCaptureIdentity() {
+        DistributedNotificationCenter.default().postNotificationName(
+            FinderCaptureIdentity.requestNotification,
+            object: nil,
+            userInfo: nil,
+            deliverImmediately: true
+        )
+    }
+
+    private func operation(for urls: [URL]) -> Operation? {
         guard (1...2).contains(urls.count) else { return nil }
+
+        if urls.count == 1, let identity = captureIdentity {
+            if let application = NSRunningApplication(processIdentifier: identity.processIdentifier),
+               application.bundleIdentifier == "stuartd.clipdiff",
+               !application.isTerminated {
+                guard !identity.matches(urls[0]) else { return nil }
+            } else {
+                captureIdentity = nil
+            }
+        }
 
         guard urls.allSatisfy({ url in
             guard url.isFileURL,

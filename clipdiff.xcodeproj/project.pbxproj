@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		CD0000000000000000000011 /* FinderCaptureIdentity.swift in Sources */ = {isa = PBXBuildFile; fileRef = CD0000000000000000000010 /* FinderCaptureIdentity.swift */; };
 		CD0000000000000000000001 /* ClipDiffFinderSync.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = CD0000000000000000000002 /* ClipDiffFinderSync.appex */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
 
@@ -35,6 +36,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		CD0000000000000000000010 /* FinderCaptureIdentity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = clipdiff/FinderCaptureIdentity.swift; sourceTree = SOURCE_ROOT; };
 		1745E09C2FB2AAD000192FFA /* clipdiff.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; name = clipdiff.app; path = ClipDiff.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		CD0000000000000000000002 /* ClipDiffFinderSync.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = ClipDiffFinderSync.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
@@ -240,6 +242,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				CD0000000000000000000011 /* FinderCaptureIdentity.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

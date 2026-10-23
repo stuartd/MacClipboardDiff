@@ -43,6 +43,8 @@ Custom shortcuts must include Option or Control; Command and Shift are optional.
 
 The app includes a Finder Sync extension. Choose **Finder Menu Settings…** in the ClipDiff menu to open macOS System Settings, then enable or disable **ClipDiff Finder Integration** there. With exactly one regular file selected, Finder shows **Compare with current ClipDiff capture**. It reads the selected file only after invocation, moves the current in-memory capture to **Previous**, makes the selected file **Current**, and opens the configured viewer without changing the clipboard. If there is no capture (including after a cold start), ClipDiff activates and explains that text or a file must first be copied while the app is running.
 
+The one-file command is hidden when the selection has the same standardized path as the current file capture. Files with matching names in different folders remain comparable. The extension receives only an in-memory, session-salted path fingerprint, and ClipDiff rechecks the path before accepting the comparison.
+
 With exactly two regular files selected, Finder shows **Compare two selected files with ClipDiff**. Choosing it opens ClipDiff if necessary, reads and classifies the pair, replaces the in-memory comparison pair, and immediately shows the diff; the first Finder selection is **Previous** and the second is **Current**. A comparison containing a binary file leaves the current captures untouched. Other unusable files use the documented filename-and-reason fallback. Zero, more than two, or any folder/non-regular selection shows neither command.
 
 ## Copied Files
@@ -71,7 +73,7 @@ The full standardized file path is retained only with the corresponding in-memor
 - A per-user file lock prevents duplicate clipboard monitors and hotkeys. Its file
   in `~/Library/Application Support/ClipDiff/instance.lock` contains only a process
   ID; macOS releases the lock when the owning process exits, including after a crash.
-- The optional Finder extension inspects selection metadata only to choose the one-file or two-file command. File contents are read only after that command is chosen; the app rechecks selection requests and asynchronous capture identity before committing.
+- The optional Finder extension uses selection metadata and the current capture's path fingerprint to choose the one-file or two-file command. File contents are read only after that command is chosen; the app rechecks selection requests and asynchronous capture identity before committing.
 - Plain text and one or two copied file URLs are supported.
 - Separate copy events are captured even when their text is identical.
 - Unsupported non-text changes are ignored without clearing history.

@@ -98,6 +98,12 @@ final class ClipboardHistory {
         guard let capturedEntry = currentEntry, capturedEntry.id == expectedID else {
             return false
         }
+        if let path = currentValue.sourceFilePath,
+           FinderCaptureIdentity.isSamePath(
+               URL(fileURLWithPath: path), sourceFilePath: capturedEntry.sourceFilePath
+           ) {
+            return false
+        }
 
         entries = [makeEntry(from: currentValue, capturedAt: capturedAt), capturedEntry]
         clearEligibility = nil

@@ -33,6 +33,9 @@ final class ClipDiffController: ObservableObject {
     private var hotKeyController: HotKeyController?
     private var applicationWillTerminateObserver: NSObjectProtocol?
     private var systemSettingsStatusObserver: AnyCancellable?
+    private let finderCaptureSessionID = UUID()
+    private var finderCaptureRevision: UInt64 = 0
+    private var finderCaptureIdentityObserver: NSObjectProtocol?
 
     convenience init() {
         self.init(clipboard: SystemClipboardStore())
@@ -55,6 +58,17 @@ final class ClipDiffController: ObservableObject {
         history = ClipboardHistory(startupChangeCount: clipboard.changeCount)
         lastRequestedChangeCount = clipboard.changeCount
 
+        finderCaptureIdentityObserver = DistributedNotificationCenter.default().addObserver(
+            forName: FinderCaptureIdentity.requestNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            MainActor.assumeIsolated {
+                self?.publishFinderCaptureIdentity()
+            }
+        }
+        publishFinderCaptureIdentity()
+
         startMonitoring()
 
         // A menu-bar menu can open without activating this accessory app. Keep
@@ -71,8 +85,11 @@ final class ClipDiffController: ObservableObject {
             forName: NSApplication.willTerminateNotification,
             object: nil,
             queue: .main
-        ) { [weak externalDiffLauncher = externalDiffLauncher] _ in
-            externalDiffLauncher?.cleanupAll()
+        ) { [weak self] _ in
+            MainActor.assumeIsolated {
+                self?.publishFinderCaptureIdentity(isTerminating: true)
+                self?.externalDiffLauncher.cleanupAll()
+            }
         }
 
     }
@@ -83,6 +100,9 @@ final class ClipDiffController: ObservableObject {
         pendingSelectedFileRead?.cancel()
         if let applicationWillTerminateObserver {
             NotificationCenter.default.removeObserver(applicationWillTerminateObserver)
+        }
+        if let finderCaptureIdentityObserver {
+            DistributedNotificationCenter.default().removeObserver(finderCaptureIdentityObserver)
         }
     }
 
@@ -232,6 +252,10 @@ final class ClipDiffController: ObservableObject {
         guard Self.isRegularFile(fileURL) else {
             lastError = "Choose one regular file to compare."
             NSSound.beep()
+            return
+        }
+        // Recheck in the app as the extension's notification may still be in flight.
+        guard !FinderCaptureIdentity.isSamePath(fileURL, sourceFilePath: capturedEntry.sourceFilePath) else {
             return
         }
 
@@ -501,6 +525,7 @@ final class ClipDiffController: ObservableObject {
             current: values[1].capturedValue,
             capturedAt: Date()
         )
+        publishFinderCaptureIdentity()
         activeDiff = nil
         lastError = nil
         objectWillChange.send()
@@ -526,6 +551,7 @@ final class ClipDiffController: ObservableObject {
             return
         }
 
+        publishFinderCaptureIdentity()
         activeDiff = nil
         lastError = nil
         objectWillChange.send()
@@ -538,16 +564,35 @@ final class ClipDiffController: ObservableObject {
         switch change {
         case .accepted:
             lastError = nil
+            publishFinderCaptureIdentity()
             objectWillChange.send()
 
         case .removedByRecentClear:
             activeDiff = nil
             lastError = nil
+            publishFinderCaptureIdentity()
             objectWillChange.send()
 
         case .none:
             break
         }
+    }
+
+    private func publishFinderCaptureIdentity(isTerminating: Bool = false) {
+        finderCaptureRevision += 1
+        let identity = FinderCaptureIdentity(
+            sourceFilePath: isTerminating ? nil : currentEntry?.sourceFilePath,
+            processIdentifier: ProcessInfo.processInfo.processIdentifier,
+            sessionID: finderCaptureSessionID,
+            revision: finderCaptureRevision
+        )
+        // The sandboxed extension uses object strings, never userInfo dictionaries.
+        DistributedNotificationCenter.default().postNotificationName(
+            FinderCaptureIdentity.changedNotification,
+            object: identity.notificationObject,
+            userInfo: nil,
+            deliverImmediately: true
+        )
     }
 
     private func cancelPendingFileRead() {

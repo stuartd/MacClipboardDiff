@@ -215,6 +215,29 @@ final class ClipboardHistoryTests: XCTestCase {
         XCTAssertEqual(history.entries.map(\.text), ["future value"])
     }
 
+    func testSingleFinderComparisonWithSamePathLeavesCapturesUnchanged() throws {
+        let history = ClipboardHistory()
+        history.apply(text(1, "older"))
+        history.apply(observation(2, content: .value(CapturedClipboardValue(
+            text: "captured contents",
+            sourceFileName: "settings.json",
+            sourceFilePath: "/files/settings.json"
+        ))))
+        let entries = history.entries
+        let capturedID = try XCTUnwrap(history.currentEntry?.id)
+
+        XCTAssertFalse(history.compareCurrentEntry(
+            expectedID: capturedID,
+            with: CapturedClipboardValue(
+                text: "changed contents",
+                sourceFileName: "settings.json",
+                sourceFilePath: "/files/subdirectory/../settings.json"
+            ),
+            capturedAt: start
+        ))
+        XCTAssertEqual(history.entries, entries)
+    }
+
     private func text(_ changeCount: Int, _ value: String, seconds: TimeInterval = 0) -> ClipboardObservation {
         observation(
             changeCount,
