@@ -57,8 +57,8 @@ jobs:
         run: |
           APP_PATH="$RUNNER_TEMP/clipdiff-derived-data/Build/Products/Release/ClipDiff.app"
           EXTENSION_PATH="$APP_PATH/Contents/PlugIns/ClipDiffFinderSync.appex"
-          lipo -verify_arch arm64 x86_64 "$APP_PATH/Contents/MacOS/ClipDiff"
-          lipo -verify_arch arm64 x86_64 "$EXTENSION_PATH/Contents/MacOS/ClipDiffFinderSync"
+          lipo "$APP_PATH/Contents/MacOS/ClipDiff" -verify_arch arm64 x86_64
+          lipo "$EXTENSION_PATH/Contents/MacOS/ClipDiffFinderSync" -verify_arch arm64 x86_64
           codesign --verify --deep --strict --verbose=2 "$APP_PATH"
           ditto -c -k --sequesterRsrc --keepParent "$APP_PATH" "$RUNNER_TEMP/ClipDiff-macOS.zip"
 
