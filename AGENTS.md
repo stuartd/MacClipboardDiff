@@ -26,10 +26,10 @@ Keep it small. This is not an App Store product, not a cloud service, and not a 
 - `clipdiff/DiffWindowController.swift`: AppKit window wrapper for the SwiftUI diff view.
 - `clipdiff/DiffWindowView.swift`: side-by-side and unified diff UI.
 - `clipdiff/AppAbout.swift`: native About panel presentation.
-- `clipdiff/AppVersionFormatter.swift`: version/build/commit display formatting.
+- `clipdiff/AppVersionFormatter.swift`: release-tag/commit display formatting.
 - `clipdiff/Assets.xcassets/`: app icon and accent color assets.
 - `ClipDiffFinderSync/`: Finder Sync extension that offers comparison commands for one or two selected regular files.
-- `ClipDiff-Info.plist`: generated bundle metadata inputs, including the release commit value.
+- `ClipDiff-Info.plist`: generated bundle metadata inputs, including the release tag and source commit.
 - `Package.swift`: SwiftPM manifest used for focused core tests.
 - `clipdiffTests/`: XCTest coverage for clipboard history and diff behavior.
 - `scripts/create-local-release.sh`: builds and opens a local Release app at `releases/ClipDiff.app`.

@@ -27,6 +27,13 @@ enum AppAbout {
 private struct ClipDiffAboutView: View {
     private let bundle = Bundle.main
 
+    private var version: AppVersionFormatter.AboutVersion {
+        AppVersionFormatter.aboutVersion(
+            releaseTag: bundle.object(forInfoDictionaryKey: "ClipDiffReleaseTag") as? String,
+            commit: bundle.object(forInfoDictionaryKey: "ClipDiffGitCommit") as? String
+        )
+    }
+
     var body: some View {
         VStack(spacing: 20) {
             VStack(spacing: 10) {
@@ -48,10 +55,8 @@ private struct ClipDiffAboutView: View {
                     Text("Rose Hill Solutions")
                 }
                 GridRow {
-                    Text("Commit").foregroundStyle(.secondary)
-                    Text(AppVersionFormatter.shortCommit(
-                        bundle.object(forInfoDictionaryKey: "ClipDiffGitCommit") as? String
-                    ) ?? "Unavailable")
+                    Text(version.label).foregroundStyle(.secondary)
+                    Text(version.value)
                 }
                 .padding(.top, 8)
                 GridRow {
