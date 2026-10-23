@@ -64,6 +64,7 @@ final class ClipDiffController: ObservableObject {
             queue: .main
         ) { [weak self] _ in
             MainActor.assumeIsolated {
+                self?.readPasteboardIfNeeded()
                 self?.publishFinderCaptureIdentity()
             }
         }
@@ -245,6 +246,27 @@ final class ClipDiffController: ObservableObject {
     }
 
     func compareWithCurrentCapture(_ fileURL: URL) {
+        // Finder can invoke this before the polling timer sees Copy as Pathname,
+        // or while its file contents are still being decoded. Finish that capture
+        // before deciding which entry to compare (and whether it is the same path).
+        readPasteboardIfNeeded()
+        guard let pendingFileRead else {
+            beginComparisonWithCurrentCapture(fileURL)
+            return
+        }
+
+        cancelPendingFinderRead()
+        let changeCount = clipboard.changeCount
+        pendingSelectedFileRead = Task { [weak self] in
+            await pendingFileRead.value
+            guard !Task.isCancelled, let self,
+                  self.clipboard.changeCount == changeCount else { return }
+            self.pendingSelectedFileRead = nil
+            self.beginComparisonWithCurrentCapture(fileURL)
+        }
+    }
+
+    private func beginComparisonWithCurrentCapture(_ fileURL: URL) {
         guard let capturedEntry = currentEntry else {
             presentNoCurrentCaptureMessage()
             return
@@ -584,7 +606,8 @@ final class ClipDiffController: ObservableObject {
             sourceFilePath: isTerminating ? nil : currentEntry?.sourceFilePath,
             processIdentifier: ProcessInfo.processInfo.processIdentifier,
             sessionID: finderCaptureSessionID,
-            revision: finderCaptureRevision
+            revision: finderCaptureRevision,
+            pasteboardChangeCount: history.lastChangeCount
         )
         // The sandboxed extension uses object strings, never userInfo dictionaries.
         DistributedNotificationCenter.default().postNotificationName(

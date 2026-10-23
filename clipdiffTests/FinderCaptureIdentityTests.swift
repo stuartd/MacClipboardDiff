@@ -27,6 +27,20 @@ final class FinderCaptureIdentityTests: XCTestCase {
         XCTAssertFalse(FinderCaptureIdentity.isSamePath(selected, sourceFilePath: nil))
     }
 
+    func testCaptureFromBeforeANewPathnameCopyDoesNotHideTheTarget() {
+        let target = URL(fileURLWithPath: path)
+        let oldCapture = makeIdentity(path, pasteboardChangeCount: 4)
+        XCTAssertTrue(oldCapture.matches(target, pasteboardChangeCount: 4))
+        XCTAssertFalse(oldCapture.matches(target, pasteboardChangeCount: 5))
+    }
+
+    func testCompletedPathnameCaptureFiltersOnlyItsOwnFile() {
+        let copiedPath = "/files/new/settings.json"
+        let newCapture = makeIdentity(copiedPath, pasteboardChangeCount: 5)
+        XCTAssertFalse(newCapture.matches(URL(fileURLWithPath: path), pasteboardChangeCount: 5))
+        XCTAssertTrue(newCapture.matches(URL(fileURLWithPath: copiedPath), pasteboardChangeCount: 5))
+    }
+
     func testMatchesCanonicalUnicodePathSpellings() {
         let identity = makeIdentity("/files/caf\u{00e9}.txt")
         XCTAssertTrue(identity.matches(URL(fileURLWithPath: "/files/cafe\u{0301}.txt")))
@@ -67,12 +81,17 @@ final class FinderCaptureIdentityTests: XCTestCase {
         XCTAssertFalse(makeIdentity(path).matches(URL(string: "https://example.com/settings.json")!))
     }
 
-    private func makeIdentity(_ path: String?, sessionID: UUID? = nil) -> FinderCaptureIdentity {
+    private func makeIdentity(
+        _ path: String?,
+        sessionID: UUID? = nil,
+        pasteboardChangeCount: Int = 0
+    ) -> FinderCaptureIdentity {
         FinderCaptureIdentity(
             sourceFilePath: path,
             processIdentifier: 123,
             sessionID: sessionID ?? self.sessionID,
-            revision: 1
+            revision: 1,
+            pasteboardChangeCount: pasteboardChangeCount
         )
     }
 }

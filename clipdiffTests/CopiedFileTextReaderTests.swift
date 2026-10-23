@@ -171,6 +171,38 @@ final class CopiedFileTextReaderTests: XCTestCase {
         XCTAssertNil(missingValue)
     }
 
+    func testPathnameCaptureCanCompareWithAnotherFileAndFiltersOnlyItself() async throws {
+        let copied = try write("previous file.txt", text: "old contents")
+        let selected = try write("current file.txt", text: "new contents")
+        let reader = CopiedFileTextReader()
+        let value = await reader.readValue(fromFullyQualifiedPath: copied.path)
+        let capture = try XCTUnwrap(value)
+        let selectedValue = try XCTUnwrap(reader.readFile(at: selected))
+        let history = ClipboardHistory()
+        history.apply(ClipboardObservation(
+            changeCount: 1,
+            observedAt: Date(),
+            content: .value(capture.capturedValue)
+        ))
+
+        let identity = FinderCaptureIdentity(
+            sourceFilePath: history.currentEntry?.sourceFilePath,
+            processIdentifier: 123,
+            sessionID: UUID(),
+            revision: 1,
+            pasteboardChangeCount: 1
+        )
+        XCTAssertTrue(identity.matches(copied, pasteboardChangeCount: 1))
+        XCTAssertFalse(identity.matches(selected, pasteboardChangeCount: 1))
+        XCTAssertTrue(history.compareCurrentEntry(
+            expectedID: try XCTUnwrap(history.currentEntry?.id),
+            with: selectedValue.capturedValue,
+            capturedAt: Date()
+        ))
+        XCTAssertEqual(history.previousEntry?.text, "old contents")
+        XCTAssertEqual(history.currentEntry?.text, "new contents")
+    }
+
     private func write(_ name: String, text: String) throws -> URL {
         try write(name, data: Data(text.utf8))
     }

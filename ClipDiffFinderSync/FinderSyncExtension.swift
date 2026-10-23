@@ -105,7 +105,8 @@ final class FinderSyncExtension: FIFinderSync {
         // The extension can start on the first right-click. Apply the initial
         // reply to that open menu too, rather than waiting for a second click.
         if let urls = FIFinderSyncController.default().selectedItemURLs(),
-           urls.count == 1, identity.matches(urls[0]) {
+           urls.count == 1,
+           identity.matches(urls[0], pasteboardChangeCount: NSPasteboard.general.changeCount) {
             comparisonMenu?.removeAllItems()
         }
     }
@@ -126,7 +127,11 @@ final class FinderSyncExtension: FIFinderSync {
             if let application = NSRunningApplication(processIdentifier: identity.processIdentifier),
                application.bundleIdentifier == "stuartd.clipdiff",
                !application.isTerminated {
-                guard !identity.matches(urls[0]) else { return nil }
+                // A fresh pathname copy may still be waiting for the app's
+                // bounded reader. An older capture must not hide this command.
+                guard !identity.matches(
+                    urls[0], pasteboardChangeCount: NSPasteboard.general.changeCount
+                ) else { return nil }
             } else {
                 captureIdentity = nil
             }

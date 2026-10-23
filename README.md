@@ -45,6 +45,8 @@ The app includes a Finder Sync extension. Choose **Finder Menu Settings…** in 
 
 The one-file command is hidden when the selection has the same standardized path as the current file capture. Files with matching names in different folders remain comparable. The extension receives only an in-memory, session-salted path fingerprint, and ClipDiff rechecks the path before accepting the comparison.
 
+Finder’s **Copy as Pathname** also works for a single absolute path to a readable, non-empty text file. Copy the pathname, then choose **Compare with current ClipDiff capture** on another text file. ClipDiff finishes any pending pathname capture before starting the comparison, and a new copy prevents an older capture from hiding that command.
+
 With exactly two regular files selected, Finder shows **Compare two selected files with ClipDiff**. Choosing it opens ClipDiff if necessary, reads and classifies the pair, replaces the in-memory comparison pair, and immediately shows the diff; the first Finder selection is **Previous** and the second is **Current**. A comparison containing a binary file leaves the current captures untouched. Other unusable files use the documented filename-and-reason fallback. Zero, more than two, or any folder/non-regular selection shows neither command.
 
 ## Copied Files

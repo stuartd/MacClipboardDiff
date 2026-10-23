@@ -10,17 +10,20 @@ nonisolated struct FinderCaptureIdentity: Codable, Equatable, Sendable {
     let processIdentifier: Int32
     let sessionID: UUID
     let revision: UInt64
+    let pasteboardChangeCount: Int
     private let pathFingerprint: String?
 
     init(
         sourceFilePath: String?,
         processIdentifier: Int32,
         sessionID: UUID,
-        revision: UInt64
+        revision: UInt64,
+        pasteboardChangeCount: Int
     ) {
         self.processIdentifier = processIdentifier
         self.sessionID = sessionID
         self.revision = revision
+        self.pasteboardChangeCount = pasteboardChangeCount
         pathFingerprint = sourceFilePath.flatMap { path in
             guard NSString(string: path).isAbsolutePath else { return nil }
             return Self.fingerprint(URL(fileURLWithPath: path), sessionID: sessionID)
@@ -49,6 +52,10 @@ nonisolated struct FinderCaptureIdentity: Codable, Equatable, Sendable {
     func matches(_ fileURL: URL) -> Bool {
         guard fileURL.isFileURL, let pathFingerprint else { return false }
         return pathFingerprint == Self.fingerprint(fileURL, sessionID: sessionID)
+    }
+
+    func matches(_ fileURL: URL, pasteboardChangeCount: Int) -> Bool {
+        self.pasteboardChangeCount == pasteboardChangeCount && matches(fileURL)
     }
 
     static func isSamePath(_ fileURL: URL, sourceFilePath: String?) -> Bool {
