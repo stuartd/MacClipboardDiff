@@ -1,20 +1,18 @@
 import Foundation
 
 enum AppVersionFormatter {
-    static func applicationVersion(buildNumber: String?, commit: String?) -> String {
-        let build = buildNumber?.trimmingCharacters(in: .whitespacesAndNewlines)
-        let shortCommit = shortCommit(commit)
+    struct AboutVersion: Equatable {
+        let label: String
+        let value: String
+    }
 
-        switch (build?.isEmpty == false ? build : nil, shortCommit) {
-        case (.some(let build), .some(let commit)):
-            return "\(build) · \(commit)"
-        case (.some(let build), .none):
-            return build
-        case (.none, .some(let commit)):
-            return commit
-        case (.none, .none):
-            return "Unknown"
+    static func aboutVersion(releaseTag: String?, commit: String?) -> AboutVersion {
+        if let tag = releaseTag?.trimmingCharacters(in: .whitespacesAndNewlines),
+           !tag.isEmpty {
+            return AboutVersion(label: "Version", value: tag)
         }
+
+        return AboutVersion(label: "Commit", value: shortCommit(commit) ?? "Unavailable")
     }
 
     static func shortCommit(_ value: String?) -> String? {

@@ -1,0 +1,107 @@
+name: Build Release
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build ClipDiff for macOS
+    runs-on: macos-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+
+      - name: Select Xcode
+        run: |
+          sudo xcode-select -s /Applications/Xcode.app
+          xcodebuild -version
+
+      - name: Run core tests
+        run: swift test --configuration release
+
+      - name: Build Release app and Finder extension
+        env:
+          CLIPDIFF_RELEASE_TAG: ${{ github.ref_type == 'tag' && startsWith(github.ref_name, 'v') && github.ref_name || '' }}
+        run: |
+          xcodebuild build \
+            -project clipdiff.xcodeproj \
+            -scheme clipdiff \
+            -configuration Release \
+            -destination 'generic/platform=macOS' \
+            -derivedDataPath "$RUNNER_TEMP/clipdiff-derived-data" \
+            'ARCHS=arm64 x86_64' \
+            ONLY_ACTIVE_ARCH=NO \
+            CODE_SIGN_STYLE=Manual \
+            CODE_SIGN_IDENTITY=- \
+            DEVELOPMENT_TEAM= \
+            CLIPDIFF_RELEASE_TAG="$CLIPDIFF_RELEASE_TAG" \
+            GIT_COMMIT="$(git rev-parse --short HEAD)"
+
+      - name: Verify and package app
+        run: |
+          APP_PATH="$RUNNER_TEMP/clipdiff-derived-data/Build/Products/Release/ClipDiff.app"
+          EXTENSION_PATH="$APP_PATH/Contents/PlugIns/ClipDiffFinderSync.appex"
+          lipo -verify_arch arm64 x86_64 "$APP_PATH/Contents/MacOS/ClipDiff"
+          lipo -verify_arch arm64 x86_64 "$EXTENSION_PATH/Contents/MacOS/ClipDiffFinderSync"
+          codesign --verify --deep --strict --verbose=2 "$APP_PATH"
+          ditto -c -k --sequesterRsrc --keepParent "$APP_PATH" "$RUNNER_TEMP/ClipDiff-macOS.zip"
+
+      - name: Upload Release app
+        uses: actions/upload-artifact@v4
+        with:
+          name: ClipDiff-macOS
+          path: ${{ runner.temp }}/ClipDiff-macOS.zip
+          if-no-files-found: error
+          retention-days: 30
+
+  publish:
+    name: Publish GitHub Release
+    needs: build
+    if: github.ref_type == 'tag' && startsWith(github.ref_name, 'v')
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    steps:
+      - name: Download Release app
+        uses: actions/download-artifact@v4
+        with:
+          name: ClipDiff-macOS
+          path: release
+
+      - name: Publish app on GitHub Releases
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            gh release upload "$RELEASE_TAG" release/ClipDiff-macOS.zip --clobber
+          else
+            RELEASE_FLAGS=()
+            if [[ "$RELEASE_TAG" == *-* ]]; then
+              RELEASE_FLAGS+=(--prerelease)
+            fi
+            gh release create "$RELEASE_TAG" release/ClipDiff-macOS.zip \
+              --verify-tag \
+              --title "ClipDiff $RELEASE_TAG" \
+              --generate-notes \
+              "${RELEASE_FLAGS[@]}"
+          fi

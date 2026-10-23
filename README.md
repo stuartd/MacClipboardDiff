@@ -10,6 +10,35 @@ scripts/create-local-release.sh
 
 The app is copied to `releases/ClipDiff.app` and opened.
 
+## GitHub Release Build
+
+Push a tag starting with `v` to build and publish a GitHub Release:
+
+```sh
+git tag v0.9.0
+git push origin v0.9.0
+```
+
+The workflow runs the core tests, builds the app and Finder extension in Release
+mode for Apple Silicon and Intel, and publishes a GitHub Release with generated
+release notes and `ClipDiff-macOS.zip` attached. Extract the ZIP to get
+`ClipDiff.app`. Tags containing a hyphen, such as `v0.9.0-rc.1`, create prereleases.
+Rerunning a tag build replaces the ZIP on its existing release.
+
+For a build from a branch, choose **Actions → Build Release → Run workflow**.
+Download the **ClipDiff-macOS** artifact from that run; branch builds do not
+publish a GitHub Release.
+
+The build uses ad hoc signing and needs no Apple signing secrets. It is not
+notarized; macOS Gatekeeper may require approval before opening it. About shows
+the tag for tagged releases (for example, **Version v0.9.0**) and the short commit
+for other builds (for example, **Commit abc1234**), including local Release builds.
+The source commit is embedded in every build; the bundle version and build number
+still come from the Xcode project. Publishing uses GitHub's built-in token and
+needs no extra repository secrets.
+
+## Running ClipDiff
+
 ClipDiff runs one instance per user. Launching it again activates the running
 instance and exits the duplicate without requesting a diff. To switch to a newly
 built version, quit the running app first; quitting discards its captured text.
