@@ -30,6 +30,27 @@ create prereleases. Rerunning a successful tag build replaces the assets on its
 existing release. Missing credentials or failed notarization stop publication;
 tagged builds never fall back to ad hoc signing.
 
+To rebuild the latest release tag from the current commit, commit your changes,
+then run:
+
+```sh
+scripts/retag-latest.sh
+```
+
+This selects the highest `v*` version tag on `origin`, deletes it remotely,
+recreates it locally as a lightweight tag at `HEAD`, and pushes it to trigger
+the release workflow. It also works when the tag already points at `HEAD`.
+The existing GitHub Release is retained; a successful build replaces its assets.
+The script requires a clean checkout, leaves branches and other tags alone, and
+attempts to restore the previous tag if recreation fails. An optional argument
+selects another remote, for example `scripts/retag-latest.sh upstream`.
+
+Its integration tests use temporary local Git repositories:
+
+```sh
+python3 scripts/tests/test_retag_latest.py
+```
+
 For a build from a branch, choose **Actions → Build Release → Run workflow**.
 Download the **ClipDiff-macOS** artifact from that run. Branch builds use ad hoc
 signing, require no Apple credentials, and do not publish a GitHub Release.

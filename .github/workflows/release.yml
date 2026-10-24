@@ -16,6 +16,7 @@ concurrency:
 jobs:
   build:
     name: Build ClipDiff for macOS
+    if: github.event.deleted != true
     runs-on: macos-latest
     timeout-minutes: 75
     defaults:
