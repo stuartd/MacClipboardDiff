@@ -19,23 +19,81 @@ git tag v0.9.0
 git push origin v0.9.0
 ```
 
-The workflow runs the core tests, builds the app and Finder extension in Release
-mode for Apple Silicon and Intel, and publishes a GitHub Release with generated
-release notes and `ClipDiff-macOS.zip` attached. Extract the ZIP to get
-`ClipDiff.app`. Tags containing a hyphen, such as `v0.9.0-rc.1`, create prereleases.
-Rerunning a tag build replaces the ZIP on its existing release.
+The workflow runs the core tests and builds the app and Finder extension in
+Release mode for Apple Silicon and Intel. Tagged builds sign both bundles with
+Developer ID, submit the app to Apple for notarization, staple the accepted
+ticket, and verify the signature, ticket, and Gatekeeper acceptance after
+extracting the final ZIP. Only then does it publish a GitHub Release with
+generated release notes, `ClipDiff-macOS.zip`, and a SHA-256 checksum. Extract
+the ZIP to get `ClipDiff.app`. Tags containing a hyphen, such as `v0.9.0-rc.1`,
+create prereleases. Rerunning a successful tag build replaces the assets on its
+existing release. Missing credentials or failed notarization stop publication;
+tagged builds never fall back to ad hoc signing.
 
 For a build from a branch, choose **Actions → Build Release → Run workflow**.
-Download the **ClipDiff-macOS** artifact from that run; branch builds do not
-publish a GitHub Release.
+Download the **ClipDiff-macOS** artifact from that run. Branch builds use ad hoc
+signing, require no Apple credentials, and do not publish a GitHub Release.
+They are not notarized, so macOS Gatekeeper may require approval before opening
+them. Manually rerunning the workflow on a `v*` tag uses the notarized release
+path.
 
-The build uses ad hoc signing and needs no Apple signing secrets. It is not
-notarized; macOS Gatekeeper may require approval before opening it. About shows
-the tag for tagged releases (for example, **Version v0.9.0**) and the short commit
+About shows the tag for tagged releases (for example, **Version v0.9.0**) and the short commit
 for other builds (for example, **Commit abc1234**), including local Release builds.
 The source commit is embedded in every build; the bundle version and build number
-still come from the Xcode project. Publishing uses GitHub's built-in token and
-needs no extra repository secrets.
+still come from the Xcode project. Publishing uses GitHub's built-in token.
+
+### One-time Apple credentials setup
+
+In [repository Actions secrets](https://github.com/stuartd/MacClipboardDiff/settings/secrets/actions),
+add the following repository secrets before pushing a release tag:
+
+| Secret | Value |
+| --- | --- |
+| `BUILD_CERTIFICATE_BASE64` | Base64-encoded `.p12` export of one **Developer ID Application** certificate and its private key. |
+| `P12_PASSWORD` | Password chosen when exporting that `.p12`. |
+| `APPLE_ID` | Apple Account email used for notarization. |
+| `APPLE_TEAM_ID` | Apple Developer team ID, currently `ZQ5KWSZ72K`. |
+| `APPLE_APP_SPECIFIC_PASSWORD` | App-specific password generated for notarization at [account.apple.com](https://account.apple.com/). |
+
+An existing Developer ID Application certificate and notarization account used
+for another app, such as MacDiff, can be reused. In Keychain Access, select the
+certificate under **My Certificates** and export it with its private key as a
+password-protected `.p12`. An Apple Development certificate is not suitable.
+For example, upload the certificate directly to GitHub without printing it or
+copying it through ClipDiff's monitored clipboard:
+
+```sh
+base64 -i /path/to/DeveloperID.p12 | gh secret set BUILD_CERTIFICATE_BASE64 --repo stuartd/MacClipboardDiff
+gh secret set P12_PASSWORD --repo stuartd/MacClipboardDiff
+gh secret set APPLE_ID --repo stuartd/MacClipboardDiff
+gh secret set APPLE_TEAM_ID --repo stuartd/MacClipboardDiff
+gh secret set APPLE_APP_SPECIFIC_PASSWORD --repo stuartd/MacClipboardDiff
+```
+
+The commands without piped input prompt for the value. A local `notarytool`
+Keychain profile is not automatically available on GitHub runners. The workflow
+imports the certificate into a temporary Keychain, validates the notarization
+credentials before building, and deletes the Keychain at the end of the job.
+Apple's submission result and available notarization log are retained as a
+separate **ClipDiff-notarization** workflow artifact, including on failure.
+Never commit signing certificates, private keys, or passwords to this repository.
+
+### Notarize a local build
+
+With the Developer ID certificate installed and a `notarytool` Keychain profile
+already configured, the same signing and packaging script can notarize an
+existing universal Release build:
+
+```sh
+SIGNING_IDENTITY="Developer ID Application: Stuart Dunkeld (ZQ5KWSZ72K)" \
+NOTARY_PROFILE="ClipDiff-Notary" \
+  scripts/notarize-release.sh /path/to/ClipDiff.app releases/notarized
+```
+
+The input app must contain both Intel and Apple Silicon executables, including
+the Finder extension. This modifies its signatures and adds the notarization
+ticket. The verified ZIP and checksum go in the output directory, alongside
+notarization diagnostics. This command does not publish a GitHub Release.
 
 ## Running ClipDiff
 

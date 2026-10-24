@@ -17,7 +17,7 @@ jobs:
   build:
     name: Build ClipDiff for macOS
     runs-on: macos-latest
-    timeout-minutes: 30
+    timeout-minutes: 75
     defaults:
       run:
         shell: bash
@@ -31,6 +31,52 @@ jobs:
         run: |
           sudo xcode-select -s /Applications/Xcode.app
           xcodebuild -version
+
+      - name: Install release signing and notarization credentials
+        if: github.ref_type == 'tag' && startsWith(github.ref_name, 'v')
+        env:
+          BUILD_CERTIFICATE_BASE64: ${{ secrets.BUILD_CERTIFICATE_BASE64 }}
+          P12_PASSWORD: ${{ secrets.P12_PASSWORD }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+        run: |
+          for SECRET_NAME in BUILD_CERTIFICATE_BASE64 P12_PASSWORD APPLE_ID APPLE_TEAM_ID APPLE_APP_SPECIFIC_PASSWORD; do
+            if [[ -z "${!SECRET_NAME}" ]]; then
+              echo "::error::Missing Actions secret: $SECRET_NAME. See README.md for notarized release setup."
+              exit 1
+            fi
+          done
+
+          umask 077
+          CERTIFICATE_PATH="$RUNNER_TEMP/clipdiff-signing.p12"
+          KEYCHAIN_PATH="$RUNNER_TEMP/clipdiff-signing.keychain-db"
+          KEYCHAIN_PASSWORD="$(openssl rand -hex 32)"
+          echo "::add-mask::$KEYCHAIN_PASSWORD"
+          printf '%s' "$BUILD_CERTIFICATE_BASE64" | base64 --decode > "$CERTIFICATE_PATH"
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 7200 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security import "$CERTIFICATE_PATH" -P "$P12_PASSWORD" -k "$KEYCHAIN_PATH" \
+            -T /usr/bin/codesign -T /usr/bin/security
+          security set-key-partition-list -S apple-tool:,apple: -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH" >/dev/null
+          security list-keychains -d user -s "$KEYCHAIN_PATH"
+          rm -f "$CERTIFICATE_PATH"
+
+          IDENTITY_HASHES="$(security find-identity -v -p codesigning "$KEYCHAIN_PATH" \
+            | awk '/"Developer ID Application:/ { print $2 }')"
+          if [[ -z "$IDENTITY_HASHES" || "$IDENTITY_HASHES" == *$'\n'* ]]; then
+            echo "::error::The .p12 must contain exactly one valid Developer ID Application identity, including its private key."
+            exit 1
+          fi
+
+          xcrun notarytool store-credentials ClipDiff-Notary \
+            --keychain "$KEYCHAIN_PATH" \
+            --apple-id "$APPLE_ID" --team-id "$APPLE_TEAM_ID" \
+            --password "$APPLE_APP_SPECIFIC_PASSWORD"
+          echo "SIGNING_IDENTITY=$IDENTITY_HASHES" >> "$GITHUB_ENV"
+          echo "SIGNING_KEYCHAIN=$KEYCHAIN_PATH" >> "$GITHUB_ENV"
+          echo "NOTARY_PROFILE=ClipDiff-Notary" >> "$GITHUB_ENV"
 
       - name: Run core tests
         run: swift test --configuration release
@@ -53,22 +99,53 @@ jobs:
             CLIPDIFF_RELEASE_TAG="$CLIPDIFF_RELEASE_TAG" \
             GIT_COMMIT="$(git rev-parse --short HEAD)"
 
-      - name: Verify and package app
+      - name: Sign, notarize, and package tagged release
+        if: github.ref_type == 'tag' && startsWith(github.ref_name, 'v')
+        run: |
+          scripts/notarize-release.sh \
+            "$RUNNER_TEMP/clipdiff-derived-data/Build/Products/Release/ClipDiff.app" \
+            "$RUNNER_TEMP/clipdiff-release"
+
+      - name: Verify and package branch build
+        if: github.ref_type != 'tag' || !startsWith(github.ref_name, 'v')
         run: |
           APP_PATH="$RUNNER_TEMP/clipdiff-derived-data/Build/Products/Release/ClipDiff.app"
           EXTENSION_PATH="$APP_PATH/Contents/PlugIns/ClipDiffFinderSync.appex"
-          lipo "$APP_PATH/Contents/MacOS/ClipDiff" -verify_arch arm64 x86_64
-          lipo "$EXTENSION_PATH/Contents/MacOS/ClipDiffFinderSync" -verify_arch arm64 x86_64
+          for ARCH in arm64 x86_64; do
+            lipo "$APP_PATH/Contents/MacOS/ClipDiff" -verify_arch "$ARCH"
+            lipo "$EXTENSION_PATH/Contents/MacOS/ClipDiffFinderSync" -verify_arch "$ARCH"
+          done
           codesign --verify --deep --strict --verbose=2 "$APP_PATH"
-          ditto -c -k --sequesterRsrc --keepParent "$APP_PATH" "$RUNNER_TEMP/ClipDiff-macOS.zip"
+          mkdir -p "$RUNNER_TEMP/clipdiff-release"
+          ditto -c -k --sequesterRsrc --keepParent "$APP_PATH" "$RUNNER_TEMP/clipdiff-release/ClipDiff-macOS.zip"
 
       - name: Upload Release app
         uses: actions/upload-artifact@v4
         with:
           name: ClipDiff-macOS
-          path: ${{ runner.temp }}/ClipDiff-macOS.zip
+          path: |
+            ${{ runner.temp }}/clipdiff-release/ClipDiff-macOS.zip
+            ${{ runner.temp }}/clipdiff-release/ClipDiff-macOS.zip.sha256
           if-no-files-found: error
           retention-days: 30
+
+      - name: Upload notarization diagnostics
+        if: always() && github.ref_type == 'tag' && startsWith(github.ref_name, 'v')
+        uses: actions/upload-artifact@v4
+        with:
+          name: ClipDiff-notarization
+          path: ${{ runner.temp }}/clipdiff-release/notarization/*.json
+          if-no-files-found: ignore
+          retention-days: 30
+
+      - name: Remove release credentials
+        if: always() && github.ref_type == 'tag' && startsWith(github.ref_name, 'v')
+        run: |
+          KEYCHAIN_PATH="$RUNNER_TEMP/clipdiff-signing.keychain-db"
+          if [[ -f "$KEYCHAIN_PATH" ]]; then
+            security delete-keychain "$KEYCHAIN_PATH"
+          fi
+          rm -f "$RUNNER_TEMP/clipdiff-signing.p12"
 
   publish:
     name: Publish GitHub Release
@@ -93,13 +170,15 @@ jobs:
           RELEASE_TAG: ${{ github.ref_name }}
         run: |
           if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
-            gh release upload "$RELEASE_TAG" release/ClipDiff-macOS.zip --clobber
+            gh release upload "$RELEASE_TAG" \
+              release/ClipDiff-macOS.zip release/ClipDiff-macOS.zip.sha256 --clobber
           else
             RELEASE_FLAGS=()
             if [[ "$RELEASE_TAG" == *-* ]]; then
               RELEASE_FLAGS+=(--prerelease)
             fi
-            gh release create "$RELEASE_TAG" release/ClipDiff-macOS.zip \
+            gh release create "$RELEASE_TAG" \
+              release/ClipDiff-macOS.zip release/ClipDiff-macOS.zip.sha256 \
               --verify-tag \
               --title "ClipDiff $RELEASE_TAG" \
               --generate-notes \
