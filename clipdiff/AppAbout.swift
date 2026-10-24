@@ -7,20 +7,25 @@ enum AppAbout {
 
     static func show() {
         if panel == nil {
+            let contentView = NSHostingView(rootView: ClipDiffAboutView())
             let aboutPanel = NSPanel(
-                contentRect: NSRect(x: 0, y: 0, width: 364, height: 338),
+                contentRect: NSRect(origin: .zero, size: contentView.fittingSize),
                 styleMask: [.titled, .closable],
                 backing: .buffered,
                 defer: false
             )
             aboutPanel.title = "About ClipDiff"
             aboutPanel.isReleasedWhenClosed = false
-            aboutPanel.contentView = NSHostingView(rootView: ClipDiffAboutView())
+            aboutPanel.contentView = contentView
             aboutPanel.center()
             panel = aboutPanel
         }
         panel?.makeKeyAndOrderFront(nil)
         NSApplication.shared.activate(ignoringOtherApps: true)
+    }
+
+    static func close() {
+        panel?.close()
     }
 }
 
@@ -35,7 +40,7 @@ private struct ClipDiffAboutView: View {
     }
 
     var body: some View {
-        VStack(spacing: 20) {
+        VStack(spacing: 18) {
             VStack(spacing: 10) {
                 Image(nsImage: NSApplication.shared.applicationIconImage)
                     .resizable()
@@ -45,20 +50,18 @@ private struct ClipDiffAboutView: View {
                     .font(.system(size: 26, weight: .semibold))
             }
 
-            Grid(alignment: .leading, horizontalSpacing: 14, verticalSpacing: 10) {
-                GridRow {
-                    Text("Developer").foregroundStyle(.secondary)
-                    Text("Stuart Dunkeld")
-                }
-                GridRow {
-                    Text("Company").foregroundStyle(.secondary)
-                    Text("Rose Hill Solutions")
-                }
+            VStack(spacing: 4) {
+                Text("© Stuart Dunkeld 2026")
+                Text("Rose Hill Solutions")
+            }
+            .font(.system(size: 14))
+            .foregroundStyle(.secondary)
+
+            Grid(alignment: .leading, horizontalSpacing: 14, verticalSpacing: 8) {
                 GridRow {
                     Text(version.label).foregroundStyle(.secondary)
                     Text(version.value)
                 }
-                .padding(.top, 8)
                 GridRow {
                     Text("Repository").foregroundStyle(.secondary)
                     Link("stuartd/MacClipboardDiff", destination: URL(string: "https://github.com/stuartd/MacClipboardDiff")!)
@@ -67,12 +70,15 @@ private struct ClipDiffAboutView: View {
             .font(.system(size: 14))
             .textSelection(.enabled)
 
-            Text("© 2026 Stuart Dunkeld")
-                .font(.system(size: 14))
-                .foregroundStyle(.secondary)
-                .frame(maxWidth: .infinity, alignment: .center)
+            Button(action: AppAbout.close) {
+                Text("OK")
+                    .frame(maxWidth: .infinity)
+            }
+            .controlSize(.large)
+            .keyboardShortcut(.defaultAction)
         }
         .padding(24)
-        .frame(width: 364, height: 338)
+        .frame(width: 380)
+        .onExitCommand(perform: AppAbout.close)
     }
 }
