@@ -66,6 +66,16 @@ struct ExternalDiffToolChoice: Identifiable {
 enum ExternalDiffToolCatalog {
     static let tools: [ExternalDiffTool] = [
         ExternalDiffTool(
+            id: "macdiff",
+            displayName: "MacDiff",
+            executableNames: ["MacDiff", "macdiff"],
+            applicationNames: ["MacDiff.app"],
+            bundleIdentifiers: ["local.macdiff.MacDiff"],
+            bundledExecutablePaths: ["Contents/MacOS/MacDiff"],
+            knownExecutablePaths: standardCommandPaths("macdiff") + standardCommandPaths("MacDiff"),
+            argumentBuilder: positionalArguments
+        ),
+        ExternalDiffTool(
             id: "filemerge",
             displayName: "FileMerge",
             executableNames: ["FileMerge", "opendiff"],

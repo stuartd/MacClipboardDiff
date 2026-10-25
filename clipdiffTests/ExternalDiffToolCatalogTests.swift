@@ -34,9 +34,40 @@ final class ExternalDiffToolCatalogTests: XCTestCase {
         XCTAssertEqual(
             ExternalDiffToolCatalog.tools.map(\.id),
             [
-                "filemerge", "kaleidoscope", "beyond-compare", "araxis", "vscode",
+                "macdiff", "filemerge", "kaleidoscope", "beyond-compare", "araxis", "vscode",
                 "cursor", "bbedit", "kdiff3", "meld", "p4merge", "diffmerge"
             ]
+        )
+    }
+
+    func testMacDiffExecutablesUseNativeProfile() {
+        for path in [
+            "/Applications/MacDiff.app/Contents/MacOS/MacDiff",
+            "/Users/example/Tools/Renamed Viewer.app/Contents/MacOS/MacDiff",
+            "/opt/homebrew/bin/macdiff",
+            "/usr/local/bin/MacDiff"
+        ] {
+            let tool = ExternalDiffToolCatalog.matchExecutable(at: URL(fileURLWithPath: path))
+
+            XCTAssertEqual(tool.id, "macdiff", path)
+            XCTAssertEqual(tool.displayName, "MacDiff", path)
+        }
+    }
+
+    func testMacDiffReceivesOnlyPreviousAndCurrentPaths() throws {
+        let tool = try XCTUnwrap(ExternalDiffToolCatalog.tools.first { $0.id == "macdiff" })
+        let previousPath = "/tmp/ClipDiff Test/Previous/Read \"me\" — café.md"
+        let currentPath = "/tmp/ClipDiff Test/Current/Read \"me\" — café.md"
+
+        // MacDiff accepts two positional files, with no wait or side-title flags.
+        XCTAssertEqual(
+            tool.arguments(
+                previousPath: previousPath,
+                currentPath: currentPath,
+                previousLabel: "Previous clipboard — old/café.md",
+                currentLabel: "Current clipboard — new/café.md"
+            ),
+            [previousPath, currentPath]
         )
     }
 

@@ -202,6 +202,7 @@ The menu's **Diff viewer** submenu lists supported applications found on the Mac
 
 ClipDiff recognizes these viewer profiles:
 
+- MacDiff
 - FileMerge
 - Kaleidoscope
 - Beyond Compare
@@ -217,6 +218,8 @@ ClipDiff recognizes these viewer profiles:
 The app checks Launch Services, `/Applications`, `~/Applications`, common Homebrew command locations, and its process `PATH`. A manually selected unknown executable receives the previous and current file paths as two separate positional arguments. If a selected viewer is missing or cannot be launched, **Show Diff** falls back to the built-in viewer without discarding either capture.
 
 Known profiles use their supported wait, read-only, diff, and side-label options. File-backed captures preserve their basenames in separate **Previous** and **Current** directories, while viewers with title support receive the same disambiguated labels as the built-in diff.
+
+MacDiff is detected by its app bundle or `MacDiff`/`macdiff` executable. Existing saved MacDiff selections are recognized automatically on the next launch. Compatible MacDiff app bundles receive both files through Launch Services, reusing the comparison window and keeping the temporary inputs until MacDiff quits. Older bundles and standalone executables receive the previous and current file paths as positional arguments.
 
 ClipDiff supplies those labels to Beyond Compare, Araxis Merge, KDiff3, Meld, and SourceGear DiffMerge. For example, two files named `README.md` can appear as **Previous clipboard — old/README.md** and **Current clipboard — new/README.md**. These viewers still read temporary copies of the captured text; the labels describe the original sources. VS Code and Cursor's command-line diff integration does not accept custom side titles, so they may display the temporary paths. Other viewer profiles preserve the source basenames where available and let the viewer choose how to display them.
 
