@@ -70,12 +70,10 @@ private struct ClipDiffAboutView: View {
             .font(.system(size: 14))
             .textSelection(.enabled)
 
-            Button(action: AppAbout.close) {
-                Text("OK")
-                    .frame(maxWidth: .infinity)
-            }
-            .controlSize(.large)
-            .keyboardShortcut(.defaultAction)
+            Button("OK", action: AppAbout.close)
+                .keyboardShortcut(.defaultAction)
+                .scaleEffect(1.5)
+                .padding(.vertical, 6)
         }
         .padding(24)
         .frame(width: 380)
