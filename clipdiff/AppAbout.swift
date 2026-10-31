@@ -32,7 +32,7 @@ enum AppAbout {
 private struct ClipDiffAboutView: View {
     private let bundle = Bundle.main
 
-    private var version: AppVersionFormatter.AboutVersion {
+    private var version: String {
         AppVersionFormatter.aboutVersion(
             releaseTag: bundle.object(forInfoDictionaryKey: "ClipDiffReleaseTag") as? String,
             commit: bundle.object(forInfoDictionaryKey: "ClipDiffGitCommit") as? String
@@ -57,15 +57,9 @@ private struct ClipDiffAboutView: View {
             .font(.system(size: 14))
             .foregroundStyle(.secondary)
 
-            Grid(alignment: .leading, horizontalSpacing: 14, verticalSpacing: 8) {
-                GridRow {
-                    Text(version.label).foregroundStyle(.secondary)
-                    Text(version.value)
-                }
-                GridRow {
-                    Text("Repository").foregroundStyle(.secondary)
-                    Link("stuartd/MacClipboardDiff", destination: URL(string: "https://github.com/stuartd/MacClipboardDiff")!)
-                }
+            VStack(spacing: 8) {
+                Text("version: \(version)")
+                Link("MacClipboardDiff", destination: URL(string: "https://github.com/stuartd/MacClipboardDiff")!)
             }
             .font(.system(size: 14))
             .textSelection(.enabled)

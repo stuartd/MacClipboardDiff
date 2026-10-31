@@ -22,13 +22,14 @@ trap cleanup EXIT
 mkdir -p "$OUTPUT_DIR"
 
 echo "Building $SCHEME ($CONFIGURATION)..."
-xcodebuild clean build \
+CLIPDIFF_RELEASE_TAG= xcodebuild clean build \
     -project "$PROJECT" \
     -scheme "$SCHEME" \
     -configuration "$CONFIGURATION" \
     -destination 'platform=macOS' \
     -derivedDataPath "$DERIVED_DATA_DIR" \
     GIT_COMMIT="$GIT_COMMIT" \
+    CLIPDIFF_RELEASE_TAG= \
     CODE_SIGN_STYLE=Automatic \
     DEVELOPMENT_TEAM="$DEVELOPMENT_TEAM" \
     CODE_SIGN_IDENTITY="$CODE_SIGN_IDENTITY"

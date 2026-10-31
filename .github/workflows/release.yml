@@ -98,7 +98,7 @@ jobs:
             CODE_SIGN_IDENTITY=- \
             DEVELOPMENT_TEAM= \
             CLIPDIFF_RELEASE_TAG="$CLIPDIFF_RELEASE_TAG" \
-            GIT_COMMIT="$(git rev-parse --short HEAD)"
+            GIT_COMMIT="$(git rev-parse --short=8 HEAD)"
 
       - name: Sign, notarize, and package tagged release
         if: github.ref_type == 'tag' && startsWith(github.ref_name, 'v')

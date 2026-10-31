@@ -14,5 +14,5 @@ APP_BUNDLE_NAME="ClipDiff.app"
 XCODE_APP_BUNDLE_NAME="$APP_BUNDLE_NAME"
 
 git_commit() {
-    git -C "$REPO_ROOT" rev-parse --short HEAD
+    git -C "$REPO_ROOT" rev-parse --short=8 HEAD
 }

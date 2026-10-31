@@ -58,8 +58,9 @@ They are not notarized, so macOS Gatekeeper may require approval before opening
 them. Manually rerunning the workflow on a `v*` tag uses the notarized release
 path.
 
-About shows the tag for tagged releases (for example, **Version v0.9.0**) and the short commit
-for other builds (for example, **Commit abc1234**), including local Release builds.
+About shows **version: 0.9.321** for a tagged release such as `v0.9.321`, and the
+eight-character commit for other builds (for example, **version: 1a3445bd**),
+including local Release builds. The repository name links to GitHub below it.
 The source commit is embedded in every build; the bundle version and build number
 still come from the Xcode project. Publishing uses GitHub's built-in token.
 

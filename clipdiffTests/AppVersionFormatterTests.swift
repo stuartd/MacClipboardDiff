@@ -5,21 +5,28 @@ final class AppVersionFormatterTests: XCTestCase {
     func testTaggedReleaseShowsTagInsteadOfCommit() {
         XCTAssertEqual(
             AppVersionFormatter.aboutVersion(
-                releaseTag: "v0.9.0",
+                releaseTag: "v0.9.321",
                 commit: "753aab75f36e959cf8dfa6d72a2175110c9ed608"
             ),
-            .init(label: "Version", value: "v0.9.0")
+            "0.9.321"
         )
     }
 
-    func testPrereleasePreservesFullTagWithoutCommit() {
+    func testPrereleasePreservesSuffixWithoutCommit() {
         XCTAssertEqual(
             AppVersionFormatter.aboutVersion(releaseTag: "v1.0.0-rc.1", commit: nil),
-            .init(label: "Version", value: "v1.0.0-rc.1")
+            "1.0.0-rc.1"
         )
     }
 
-    func testUntaggedBuildShowsShortCommit() {
+    func testReleaseVersionWithoutTagPrefixIsUnchanged() {
+        XCTAssertEqual(
+            AppVersionFormatter.aboutVersion(releaseTag: "0.9.321", commit: nil),
+            "0.9.321"
+        )
+    }
+
+    func testUntaggedBuildShowsEightCharacterCommit() {
         let tags: [String?] = [nil, "", " \n\t"]
         for tag in tags {
             XCTAssertEqual(
@@ -27,7 +34,7 @@ final class AppVersionFormatterTests: XCTestCase {
                     releaseTag: tag,
                     commit: "abcdef0123456789"
                 ),
-                .init(label: "Commit", value: "abcdef0")
+                "abcdef01"
             )
         }
     }
@@ -35,11 +42,11 @@ final class AppVersionFormatterTests: XCTestCase {
     func testBuildMetadataTrimsWhitespace() {
         XCTAssertEqual(
             AppVersionFormatter.aboutVersion(releaseTag: " v0.9.0\n", commit: nil),
-            .init(label: "Version", value: "v0.9.0")
+            "0.9.0"
         )
         XCTAssertEqual(
             AppVersionFormatter.aboutVersion(releaseTag: nil, commit: " ABCDEF0123456789\n"),
-            .init(label: "Commit", value: "ABCDEF0")
+            "ABCDEF01"
         )
     }
 
@@ -48,7 +55,7 @@ final class AppVersionFormatterTests: XCTestCase {
         for commit in commits {
             XCTAssertEqual(
                 AppVersionFormatter.aboutVersion(releaseTag: nil, commit: commit),
-                .init(label: "Commit", value: "Unavailable")
+                "Unavailable"
             )
         }
     }

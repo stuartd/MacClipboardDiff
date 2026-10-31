@@ -1,18 +1,13 @@
 import Foundation
 
 enum AppVersionFormatter {
-    struct AboutVersion: Equatable {
-        let label: String
-        let value: String
-    }
-
-    static func aboutVersion(releaseTag: String?, commit: String?) -> AboutVersion {
+    static func aboutVersion(releaseTag: String?, commit: String?) -> String {
         if let tag = releaseTag?.trimmingCharacters(in: .whitespacesAndNewlines),
            !tag.isEmpty {
-            return AboutVersion(label: "Version", value: tag)
+            return tag.hasPrefix("v") ? String(tag.dropFirst()) : tag
         }
 
-        return AboutVersion(label: "Commit", value: shortCommit(commit) ?? "Unavailable")
+        return shortCommit(commit) ?? "Unavailable"
     }
 
     static func shortCommit(_ value: String?) -> String? {
@@ -27,6 +22,6 @@ enum AppVersionFormatter {
               }) else {
             return nil
         }
-        return String(trimmed.prefix(7))
+        return String(trimmed.prefix(8))
     }
 }
