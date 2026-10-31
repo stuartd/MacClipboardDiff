@@ -3,12 +3,18 @@ import Foundation
 struct ExternalDiffSettings: Equatable {
     var selectedExecutablePath: String?
     var plaintextWarningAcknowledged: Bool
+    var forceMacDiffRecommendation = false
+
+    func shouldRecommendMacDiff(among installedTools: [ExternalDiffToolChoice]) -> Bool {
+        forceMacDiffRecommendation || !installedTools.contains { $0.tool.isDedicatedDiffViewer }
+    }
 }
 
 final class ExternalDiffSettingsStore {
     private enum Key {
         static let selectedExecutablePath = "ExternalDiff.SelectedExecutablePath"
         static let plaintextWarningAcknowledged = "ExternalDiff.PlaintextWarningAcknowledged"
+        static let forceMacDiffRecommendation = "ExternalDiff.ForceMacDiffRecommendation"
     }
 
     private let defaults: UserDefaults
@@ -20,7 +26,8 @@ final class ExternalDiffSettingsStore {
     func load() -> ExternalDiffSettings {
         ExternalDiffSettings(
             selectedExecutablePath: defaults.string(forKey: Key.selectedExecutablePath),
-            plaintextWarningAcknowledged: defaults.bool(forKey: Key.plaintextWarningAcknowledged)
+            plaintextWarningAcknowledged: defaults.bool(forKey: Key.plaintextWarningAcknowledged),
+            forceMacDiffRecommendation: defaults.bool(forKey: Key.forceMacDiffRecommendation)
         )
     }
 
@@ -33,6 +40,10 @@ final class ExternalDiffSettingsStore {
         defaults.set(
             settings.plaintextWarningAcknowledged,
             forKey: Key.plaintextWarningAcknowledged
+        )
+        defaults.set(
+            settings.forceMacDiffRecommendation,
+            forKey: Key.forceMacDiffRecommendation
         )
     }
 }

@@ -132,6 +132,10 @@ final class ClipDiffController: ObservableObject {
         selectedExternalDiffTool?.displayName ?? "Built-in viewer"
     }
 
+    var shouldRecommendMacDiff: Bool {
+        externalDiffSettings.shouldRecommendMacDiff(among: externalDiffTools)
+    }
+
     func showDiff() {
         guard let previousEntry, let currentEntry else {
             lastError = "Copy two text values or files first."

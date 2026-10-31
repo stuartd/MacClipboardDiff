@@ -107,6 +107,15 @@ struct MenuContentView: View {
             } label: {
                 Label("Choose Application…", systemImage: "folder")
             }
+
+            if controller.shouldRecommendMacDiff {
+                Divider()
+
+                Link(destination: URL(string: "https://github.com/stuartd/macdiff/releases/latest")!) {
+                    Label("Get MacDiff…", systemImage: "arrow.up.right.square")
+                }
+                .help("A native companion diff viewer for ClipDiff")
+            }
         } label: {
             Label("Diff viewer: \(controller.diffViewerName)", systemImage: "macwindow")
         }

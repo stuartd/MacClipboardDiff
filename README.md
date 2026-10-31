@@ -201,6 +201,20 @@ The full standardized file path is retained only with the corresponding in-memor
 
 The menu's **Diff viewer** submenu lists supported applications found on the Mac, provides **Choose Application…** for another app or executable, and lets you return to the built-in viewer. The selection is remembered.
 
+If no dedicated diff viewer is found, the submenu also offers **Get MacDiff…**, linking to the [latest MacDiff release](https://github.com/stuartd/macdiff/releases/latest). Visual Studio Code and Cursor remain selectable but do not hide this companion recommendation. Any detected dedicated viewer (including MacDiff), or a manually chosen custom viewer, hides it.
+
+ClipDiff uses macOS preferences (`UserDefaults`), stored in `~/Library/Preferences/stuartd.clipdiff.plist`. To test the recommendation with other viewers installed, quit ClipDiff, set this flag, and reopen it:
+
+```sh
+defaults write stuartd.clipdiff ExternalDiff.ForceMacDiffRecommendation -bool true
+```
+
+Look for **Get MacDiff…** under **Diff viewer**. This override forces the link to appear even if MacDiff is already installed; it does not change the selected viewer. To restore automatic detection, quit ClipDiff, set the flag back to false, and reopen it:
+
+```sh
+defaults write stuartd.clipdiff ExternalDiff.ForceMacDiffRecommendation -bool false
+```
+
 ClipDiff recognizes these viewer profiles:
 
 - MacDiff

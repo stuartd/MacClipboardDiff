@@ -16,6 +16,7 @@ struct ExternalDiffTool {
     let bundledExecutablePaths: [String]
     let knownExecutablePaths: [String]
     let launcherExecutablePath: String?
+    let isDedicatedDiffViewer: Bool
     private let argumentBuilder: ArgumentBuilder
 
     init(
@@ -27,6 +28,7 @@ struct ExternalDiffTool {
         bundledExecutablePaths: [String] = [],
         knownExecutablePaths: [String] = [],
         launcherExecutablePath: String? = nil,
+        isDedicatedDiffViewer: Bool = true,
         argumentBuilder: @escaping ArgumentBuilder
     ) {
         self.id = id
@@ -37,6 +39,7 @@ struct ExternalDiffTool {
         self.bundledExecutablePaths = bundledExecutablePaths
         self.knownExecutablePaths = knownExecutablePaths
         self.launcherExecutablePath = launcherExecutablePath
+        self.isDedicatedDiffViewer = isDedicatedDiffViewer
         self.argumentBuilder = argumentBuilder
     }
 
@@ -276,6 +279,7 @@ enum ExternalDiffToolCatalog {
             bundleIdentifiers: bundleIdentifiers,
             bundledExecutablePaths: bundledExecutablePaths,
             knownExecutablePaths: standardCommandPaths(executableName),
+            isDedicatedDiffViewer: false,
             argumentBuilder: { previous, current, _, _ in
                 // The Code CLI's --diff accepts file paths, but no per-side
                 // display titles. Keep labels out of its positional arguments.
