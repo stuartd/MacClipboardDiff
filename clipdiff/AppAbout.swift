@@ -58,7 +58,7 @@ private struct ClipDiffAboutView: View {
             .foregroundStyle(.secondary)
 
             VStack(spacing: 8) {
-                Text("version: \(version)")
+                Text("Version \(version)")
                 Link("MacClipboardDiff", destination: URL(string: "https://github.com/stuartd/MacClipboardDiff")!)
             }
             .font(.system(size: 14))
