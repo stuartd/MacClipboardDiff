@@ -206,14 +206,16 @@ If no dedicated diff viewer is found, the submenu also offers **Get MacDiff…**
 ClipDiff uses macOS preferences (`UserDefaults`), stored in `~/Library/Preferences/stuartd.clipdiff.plist`. To test the recommendation with other viewers installed, quit ClipDiff, set this flag, and reopen it:
 
 ```sh
-defaults write stuartd.clipdiff ExternalDiff.ForceMacDiffRecommendation -bool true
+defaults write ~/Library/Preferences/stuartd.clipdiff.plist ExternalDiff.ForceMacDiffRecommendation -bool true
 ```
 
 Look for **Get MacDiff…** under **Diff viewer**. This override forces the link to appear even if MacDiff is already installed; it does not change the selected viewer. To restore automatic detection, quit ClipDiff, set the flag back to false, and reopen it:
 
 ```sh
-defaults write stuartd.clipdiff ExternalDiff.ForceMacDiffRecommendation -bool false
+defaults write ~/Library/Preferences/stuartd.clipdiff.plist ExternalDiff.ForceMacDiffRecommendation -bool false
 ```
+
+Use the explicit preferences-file path: on Macs that previously ran a sandboxed ClipDiff build, `defaults write stuartd.clipdiff …` can target the old container's preferences instead of the file used by the current app.
 
 ClipDiff recognizes these viewer profiles:
 
