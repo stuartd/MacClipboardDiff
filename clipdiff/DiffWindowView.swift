@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 struct DiffWindowView: View {
@@ -31,33 +32,40 @@ private struct DiffHeaderView: View {
     @ObservedObject var controller: ClipDiffController
 
     var body: some View {
-        HStack(spacing: 12) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Clipboard Diff")
-                    .font(.headline)
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 12) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Clipboard Diff")
+                        .font(.headline)
 
-                Text(document.summary.label)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-
-            Spacer()
-
-            Picker("View", selection: $controller.viewMode) {
-                ForEach(DiffViewMode.allCases) { mode in
-                    Text(mode.rawValue).tag(mode)
+                    Text(document.summary.label)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                 }
-            }
-            .pickerStyle(.segmented)
-            .frame(width: 220)
 
-            Button {
-                controller.copyActiveDiff()
-            } label: {
-                Image(systemName: "doc.on.doc")
+                Spacer()
+
+                Picker("View", selection: $controller.viewMode) {
+                    ForEach(DiffViewMode.allCases) { mode in
+                        Text(mode.rawValue).tag(mode)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .frame(width: 220)
+
+                Button {
+                    controller.copyActiveDiff()
+                } label: {
+                    Image(systemName: "doc.on.doc")
+                }
+                .buttonStyle(.bordered)
+                .help("Copy diff")
             }
-            .buttonStyle(.bordered)
-            .help("Copy diff")
+
+            Toggle("Ignore spacing", isOn: $controller.ignoreSpacing)
+                .toggleStyle(.checkbox)
+                .font(.caption)
+                .help("Ignore leading and trailing whitespace and treat internal whitespace runs as one space. Original text is preserved.")
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 10)
@@ -130,14 +138,14 @@ private struct SideBySideRow: View {
         HStack(alignment: .top, spacing: 0) {
             side(
                 lineNumber: row.oldLineNumber,
-                text: row.oldText
+                text: row.oldText, highlights: row.oldHighlights, highlight: .red
             )
 
             Divider()
 
             side(
                 lineNumber: row.newLineNumber,
-                text: row.newText
+                text: row.newText, highlights: row.newHighlights, highlight: .green
             )
         }
         .background(alignment: .leading) {
@@ -154,14 +162,16 @@ private struct SideBySideRow: View {
         }
     }
 
-    private func side(lineNumber: Int?, text: String?) -> some View {
+    private func side(
+        lineNumber: Int?, text: String?, highlights: [HighlightRange], highlight: Color
+    ) -> some View {
         HStack(alignment: .top, spacing: 0) {
             Text(lineNumber.map(String.init) ?? "")
                 .foregroundStyle(.tertiary)
                 .frame(width: 52, alignment: .trailing)
                 .padding(.trailing, 8)
 
-            Text((text ?? "").displayTabs)
+            diffText(text, highlights: highlights, highlight: highlight)
                 .foregroundStyle(text == nil ? .clear : .primary)
                 .font(.system(size: 12, weight: .regular, design: .monospaced))
                 .lineLimit(nil)
@@ -221,12 +231,12 @@ private struct UnifiedDiffView: View {
                         case .equal:
                             unifiedLine("  \(row.oldText ?? "")", background: .clear)
                         case .removed:
-                            unifiedLine("- \(row.oldText ?? "")", background: Color.red.opacity(0.13))
+                            unifiedLine(row.oldText ?? "", prefix: "- ", highlights: row.oldHighlights, highlight: .red, background: Color.red.opacity(0.13))
                         case .inserted:
-                            unifiedLine("+ \(row.newText ?? "")", background: Color.green.opacity(0.13))
+                            unifiedLine(row.newText ?? "", prefix: "+ ", highlights: row.newHighlights, highlight: .green, background: Color.green.opacity(0.13))
                         case .changed:
-                            unifiedLine("- \(row.oldText ?? "")", background: Color.red.opacity(0.13))
-                            unifiedLine("+ \(row.newText ?? "")", background: Color.green.opacity(0.13))
+                            unifiedLine(row.oldText ?? "", prefix: "- ", highlights: row.oldHighlights, highlight: .red, background: Color.red.opacity(0.13))
+                            unifiedLine(row.newText ?? "", prefix: "+ ", highlights: row.newHighlights, highlight: .green, background: Color.green.opacity(0.13))
                         }
                     }
                 }
@@ -237,8 +247,11 @@ private struct UnifiedDiffView: View {
         }
     }
 
-    private func unifiedLine(_ text: String, background: Color) -> some View {
-        Text(text.displayTabs)
+    private func unifiedLine(
+        _ text: String, prefix: String = "", highlights: [HighlightRange] = [],
+        highlight: Color = .clear, background: Color
+    ) -> some View {
+        diffText(text, prefix: prefix, highlights: highlights, highlight: highlight)
             .font(.system(size: 12, weight: .regular, design: .monospaced))
             .lineLimit(nil)
             .multilineTextAlignment(.leading)
@@ -269,8 +282,63 @@ private struct EmptyDiffView: View {
     }
 }
 
-private extension String {
-    var displayTabs: String {
-        replacingOccurrences(of: "\t", with: "    ")
+/// Use AppKit for inline background attributes on macOS 13. Plain rows retain
+/// SwiftUI Text; highlighted rows use a single native, selectable paragraph.
+@ViewBuilder
+private func diffText(
+    _ text: String?, prefix: String = "", highlights: [HighlightRange], highlight: Color
+) -> some View {
+    if highlights.isEmpty {
+        Text(verbatim: prefix + (text ?? "").replacingOccurrences(of: "\t", with: "    "))
+    } else {
+        HighlightedDiffText(text: text, prefix: prefix, highlights: highlights, highlight: highlight)
+    }
+}
+
+private struct HighlightedDiffText: NSViewRepresentable {
+    let text: String?
+    let prefix: String
+    let highlights: [HighlightRange]
+    let highlight: Color
+
+    func makeNSView(context: Context) -> NSTextView {
+        let view = NSTextView(frame: .zero)
+        view.isEditable = false
+        view.isSelectable = true
+        view.drawsBackground = false
+        view.isHorizontallyResizable = false
+        view.isVerticallyResizable = true
+        view.textContainerInset = .zero
+        view.textContainer?.lineFragmentPadding = 0
+        view.textContainer?.widthTracksTextView = true
+        view.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+        return view
+    }
+
+    func updateNSView(_ view: NSTextView, context: Context) {
+        let attributes: [NSAttributedString.Key: Any] = [
+            .font: NSFont.monospacedSystemFont(ofSize: 12, weight: .regular),
+            .foregroundColor: NSColor.textColor
+        ]
+        let attributed = NSMutableAttributedString(string: prefix, attributes: attributes)
+        for slice in DiffTextFormatting.slices(text, highlights: highlights) {
+            var runAttributes = attributes
+            if slice.highlighted {
+                runAttributes[.backgroundColor] = NSColor(highlight).withAlphaComponent(0.3)
+            }
+            attributed.append(NSAttributedString(string: slice.text, attributes: runAttributes))
+        }
+        if view.textStorage?.isEqual(to: attributed) != true {
+            view.textStorage?.setAttributedString(attributed)
+        }
+    }
+
+    func sizeThatFits(_ proposal: ProposedViewSize, nsView view: NSTextView, context: Context) -> CGSize? {
+        guard let width = proposal.width, width.isFinite, width > 0,
+              let container = view.textContainer, let layout = view.layoutManager else { return nil }
+        container.containerSize = NSSize(width: width, height: .greatestFiniteMagnitude)
+        layout.ensureLayout(for: container)
+        let lineHeight = layout.defaultLineHeight(for: NSFont.monospacedSystemFont(ofSize: 12, weight: .regular))
+        return CGSize(width: width, height: max(lineHeight, ceil(layout.usedRect(for: container).height)))
     }
 }

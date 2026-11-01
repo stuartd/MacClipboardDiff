@@ -127,6 +127,12 @@ enum DiffKind: Equatable {
     case changed
 }
 
+/// Zero-based extended grapheme cluster offsets, with an exclusive end.
+struct HighlightRange: Equatable {
+    let start: Int
+    let end: Int
+}
+
 struct DiffRow: Identifiable {
     let id = UUID()
     let oldLineNumber: Int?
@@ -134,6 +140,8 @@ struct DiffRow: Identifiable {
     let oldText: String?
     let newText: String?
     let kind: DiffKind
+    var oldHighlights: [HighlightRange] = []
+    var newHighlights: [HighlightRange] = []
 }
 
 struct DiffSummary {

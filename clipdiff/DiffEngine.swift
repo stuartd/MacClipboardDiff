@@ -1,18 +1,40 @@
 import Foundation
 
 enum DiffEngine {
-    static func makeDocument(previous: ClipboardEntry, current: ClipboardEntry) -> DiffDocument {
+    static func makeDocument(
+        previous: ClipboardEntry, current: ClipboardEntry, ignoreSpacing: Bool = false
+    ) -> DiffDocument {
+        buildDocument(
+            previous: previous, current: current,
+            labels: makeLabels(previous: previous, current: current),
+            createdAt: Date(), ignoreSpacing: ignoreSpacing
+        )
+    }
+
+    /// Recompute the displayed snapshot, not newer clipboard captures. Its source
+    /// paths have already been dropped, so keep the resolved labels explicitly.
+    static func recompare(_ document: DiffDocument, ignoreSpacing: Bool) -> DiffDocument {
+        buildDocument(
+            previous: document.previous, current: document.current, labels: document.labels,
+            createdAt: document.createdAt, ignoreSpacing: ignoreSpacing
+        )
+    }
+
+    private static func buildDocument(
+        previous: ClipboardEntry, current: ClipboardEntry, labels: DiffSideLabels,
+        createdAt: Date, ignoreSpacing: Bool
+    ) -> DiffDocument {
         let oldLines = TextLines.split(previous.text)
         let newLines = TextLines.split(current.text)
-        let rows = makeRows(oldLines: oldLines, newLines: newLines)
-        let labels = makeLabels(previous: previous, current: current)
-
+        var inline = InlineDiff(ignoreSpacing: ignoreSpacing)
+        let rows = makeRows(oldLines: oldLines, newLines: newLines, ignoreSpacing: ignoreSpacing)
+            .map { inline.highlight($0) }
         return DiffDocument(
             previous: entryWithoutSourcePath(previous),
             current: entryWithoutSourcePath(current),
             rows: rows,
             summary: summarize(rows),
-            createdAt: Date(),
+            createdAt: createdAt,
             labels: labels
         )
     }
@@ -68,8 +90,10 @@ enum DiffEngine {
         )
     }
 
-    private static func makeRows(oldLines: [String], newLines: [String]) -> [DiffRow] {
-        let difference = newLines.difference(from: oldLines)
+    private static func makeRows(oldLines: [String], newLines: [String], ignoreSpacing: Bool) -> [DiffRow] {
+        let oldKeys = ignoreSpacing ? oldLines.map(InlineDiff.normalizeSpacing) : oldLines
+        let newKeys = ignoreSpacing ? newLines.map(InlineDiff.normalizeSpacing) : newLines
+        let difference = newKeys.difference(from: oldKeys, by: InlineDiff.equal)
         var removedOffsets = Set<Int>()
         var insertedOffsets = Set<Int>()
 

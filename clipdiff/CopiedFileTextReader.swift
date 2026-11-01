@@ -19,14 +19,41 @@ nonisolated struct CopiedFileTextReader: Sendable {
 
     private static let knownBinaryExtensions: Set<String> = [
         "a", "app", "bundle", "class", "dmg", "dylib", "framework", "jar",
-        "kext", "mpkg", "o", "pkg", "so", "xpc", "zip"
+        "kext", "mpkg", "o", "pkg", "so", "xpc", "zip",
+        "appx", "appxbundle", "com", "cpl", "dll", "drv", "efi", "exe",
+        "msi", "msix", "msixbundle", "msp", "mst", "mui", "ocx", "scr", "sys"
+    ]
+
+    // Content signatures also catch renamed binaries whose bytes can look textual,
+    // such as PDF and GIF. Check these before BOM-less text heuristics.
+    private static let knownBinarySignatures: [[UInt8]] = [
+        [0x25, 0x50, 0x44, 0x46, 0x2D],                         // PDF
+        [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A],       // PNG
+        [0xFF, 0xD8, 0xFF],                                     // JPEG
+        [0x47, 0x49, 0x46, 0x38, 0x37, 0x61],                   // GIF87a
+        [0x47, 0x49, 0x46, 0x38, 0x39, 0x61],                   // GIF89a
+        [0x50, 0x4B, 0x03, 0x04], [0x50, 0x4B, 0x05, 0x06],     // ZIP
+        [0x50, 0x4B, 0x07, 0x08],
+        [0x1F, 0x8B], [0x42, 0x5A, 0x68],                       // GZip, BZip2
+        [0x37, 0x7A, 0xBC, 0xAF, 0x27, 0x1C],                   // 7-Zip
+        [0x52, 0x61, 0x72, 0x21, 0x1A, 0x07],                   // RAR
+        [0xD0, 0xCF, 0x11, 0xE0, 0xA1, 0xB1, 0x1A, 0xE1],       // OLE
+        [0x7F, 0x45, 0x4C, 0x46],                               // ELF
+        [0xCA, 0xFE, 0xBA, 0xBE], [0xBE, 0xBA, 0xFE, 0xCA],     // Java / fat Mach-O
+        [0xFE, 0xED, 0xFA, 0xCE], [0xCE, 0xFA, 0xED, 0xFE],     // Mach-O
+        [0xFE, 0xED, 0xFA, 0xCF], [0xCF, 0xFA, 0xED, 0xFE]
     ]
 
     private let maximumTextFileBytes: Int
+    private let aliasTargetResolver: @Sendable (URL) throws -> URL?
 
-    init(maximumTextFileBytes: Int = CopiedFileTextReader.defaultMaximumTextFileBytes) {
+    init(
+        maximumTextFileBytes: Int = CopiedFileTextReader.defaultMaximumTextFileBytes,
+        resolveAlias: @escaping @Sendable (URL) throws -> URL? = CopiedFileTextReader.systemAliasTarget
+    ) {
         precondition(maximumTextFileBytes > 0)
         self.maximumTextFileBytes = maximumTextFileBytes
+        aliasTargetResolver = resolveAlias
     }
 
     func readValues(from fileURLs: [URL]) async -> [CopiedFileText] {
@@ -50,15 +77,44 @@ nonisolated struct CopiedFileTextReader: Sendable {
         }
     }
 
-    /// Resolves a plain-text clipboard value as a file only when it is an
-    /// absolute path to a readable, non-empty text file. Invalid paths remain
-    /// ordinary clipboard text rather than becoming file fallback entries.
-    func readValue(fromFullyQualifiedPath path: String) async -> CopiedFileText? {
-        guard NSString(string: path).isAbsolutePath else { return nil }
+    /// Recognizes copied absolute paths before reading any file contents.
+    /// Ordinary text (including malformed or mixed path lists) stays intact.
+    /// Quoted paths opt into the same fallbacks as copied file objects.
+    func readClipboardText(_ text: String) async -> ClipboardObservationContent {
+        guard !Task.isCancelled else { return .nonText }
+        guard let paths = Self.parseClipboardPaths(text) else {
+            return .value(CapturedClipboardValue(text: text))
+        }
 
-        let fileURL = URL(fileURLWithPath: path)
-        let readTask = Task.detached(priority: .userInitiated) {
-            readFile(at: fileURL, usesFallback: false)
+        let readTask = Task.detached(priority: .userInitiated) { () -> ClipboardObservationContent in
+            // Existence probes can block on mounted volumes, so keep them off
+            // the main actor along with the reads. Validate the complete list
+            // before reading it; never accept only one half of a pair.
+            if paths.requiresExistingFiles {
+                for path in paths.values {
+                    guard !Task.isCancelled else { return .nonText }
+                    var isDirectory: ObjCBool = false
+                    guard FileManager.default.fileExists(atPath: path, isDirectory: &isDirectory),
+                          !isDirectory.boolValue else {
+                        return .value(CapturedClipboardValue(text: text))
+                    }
+                }
+            }
+
+            guard (1...2).contains(paths.values.count) else { return .nonText }
+            var values: [CapturedClipboardValue] = []
+            for path in paths.values {
+                guard !Task.isCancelled,
+                      let value = readFile(at: URL(fileURLWithPath: path)) else {
+                    return .nonText
+                }
+                values.append(value.capturedValue)
+            }
+
+            if values.count == 2 {
+                return .pair(previous: values[0], current: values[1])
+            }
+            return .value(values[0])
         }
 
         return await withTaskCancellationHandler {
@@ -68,11 +124,92 @@ nonisolated struct CopiedFileTextReader: Sendable {
         }
     }
 
-    func readFile(at fileURL: URL) -> CopiedFileText? {
-        readFile(at: fileURL, usesFallback: true)
+    private struct ClipboardPaths: Sendable {
+        let values: [String]
+        let requiresExistingFiles: Bool
     }
 
-    private func readFile(at fileURL: URL, usesFallback: Bool) -> CopiedFileText? {
+    private static func parseClipboardPaths(_ text: String) -> ClipboardPaths? {
+        var lines = text.replacingOccurrences(of: "\r\n", with: "\n")
+            .replacingOccurrences(of: "\r", with: "\n")
+            .components(separatedBy: "\n")
+        while lines.last == "" { lines.removeLast() }
+        guard !lines.isEmpty else { return nil }
+
+        var paths: [String] = []
+        var requiresExistingFiles = false
+        for line in lines {
+            let quoted = line.count >= 2 && line.hasPrefix("\"") && line.hasSuffix("\"")
+            let path = quoted ? String(line.dropFirst().dropLast()) : line
+            guard path.hasPrefix("/"),
+                  !path.contains("\""),
+                  !path.unicodeScalars.contains(where: { CharacterSet.controlCharacters.contains($0) }) else {
+                return nil
+            }
+            paths.append(path)
+            requiresExistingFiles = requiresExistingFiles || !quoted
+        }
+        return ClipboardPaths(values: paths, requiresExistingFiles: requiresExistingFiles)
+    }
+
+    func readFile(at fileURL: URL) -> CopiedFileText? {
+        guard !Task.isCancelled, fileURL.isFileURL else { return nil }
+        let source = fileURL.standardizedFileURL
+        #if os(macOS)
+        let hasSecurityScope = source.startAccessingSecurityScopedResource()
+        defer {
+            if hasSecurityScope { source.stopAccessingSecurityScopedResource() }
+        }
+        #endif
+
+        guard FileManager.default.fileExists(atPath: source.path) else {
+            return fallback(fileName: source.lastPathComponent, filePath: source.path, reason: "file not found")
+        }
+        do {
+            var target = source
+            var visited: Set<String> = []
+            var aliasCount = 0
+            while true {
+                guard !Task.isCancelled else { return nil }
+                guard visited.insert(target.path).inserted else { throw CocoaError(.fileReadCorruptFile) }
+                guard let next = try aliasTargetResolver(target) else { break }
+                guard aliasCount < 8, next.isFileURL else { throw CocoaError(.fileReadCorruptFile) }
+                aliasCount += 1
+                target = next.standardizedFileURL
+            }
+            return readResolvedFile(at: target)
+        } catch {
+            guard !Task.isCancelled else { return nil }
+            // Never decode an alias record as clipboard text when resolution fails.
+            return fallback(fileName: source.lastPathComponent, filePath: source.path, reason: "file unreadable")
+        }
+    }
+
+    private static func systemAliasTarget(_ fileURL: URL) throws -> URL? {
+        #if os(macOS)
+        let hasSecurityScope = fileURL.startAccessingSecurityScopedResource()
+        defer {
+            if hasSecurityScope { fileURL.stopAccessingSecurityScopedResource() }
+        }
+        let metadata = try fileURL.resourceValues(forKeys: [.isAliasFileKey, .fileSizeKey])
+        guard metadata.isAliasFile == true else { return nil }
+        guard let size = metadata.fileSize, size <= defaultMaximumTextFileBytes else {
+            throw CocoaError(.fileReadCorruptFile)
+        }
+        // Resolve bookmark data in memory, without rewriting even a stale alias.
+        let data = try URL.bookmarkData(withContentsOf: fileURL)
+        guard data.count <= defaultMaximumTextFileBytes else { throw CocoaError(.fileReadCorruptFile) }
+        var isStale = false
+        return try URL(
+            resolvingBookmarkData: data, options: [.withoutUI, .withoutMounting],
+            relativeTo: nil, bookmarkDataIsStale: &isStale
+        )
+        #else
+        return nil
+        #endif
+    }
+
+    private func readResolvedFile(at fileURL: URL) -> CopiedFileText? {
         guard !Task.isCancelled, fileURL.isFileURL else { return nil }
 
         let standardizedURL = fileURL.standardizedFileURL
@@ -91,33 +228,30 @@ nonisolated struct CopiedFileTextReader: Sendable {
 
         var isDirectory: ObjCBool = false
         guard FileManager.default.fileExists(atPath: path, isDirectory: &isDirectory) else {
-            return invalidFile(
+            return fallback(
                 fileName: fileName,
                 filePath: path,
-                reason: "file not found",
-                usesFallback: usesFallback
+                reason: "file not found"
             )
         }
 
         if isDirectory.boolValue {
-            return invalidFile(
+            return fallback(
                 fileName: fileName,
                 filePath: path,
-                reason: "directory",
-                usesFallback: usesFallback
+                reason: "directory"
             )
         }
 
         if Self.knownBinaryExtensions.contains(standardizedURL.pathExtension.lowercased()) {
-            return nil
+            return fallback(fileName: fileName, filePath: path, reason: "binary file")
         }
 
         guard FileManager.default.isReadableFile(atPath: path) else {
-            return invalidFile(
+            return fallback(
                 fileName: fileName,
                 filePath: path,
-                reason: "file unreadable",
-                usesFallback: usesFallback
+                reason: "file unreadable"
             )
         }
 
@@ -126,20 +260,18 @@ nonisolated struct CopiedFileTextReader: Sendable {
             let fileSize = (attributes[.size] as? NSNumber)?.intValue ?? 0
 
             if fileSize == 0 {
-                return invalidFile(
+                return fallback(
                     fileName: fileName,
                     filePath: path,
-                    reason: "empty file",
-                    usesFallback: usesFallback
+                    reason: "empty file"
                 )
             }
 
             if fileSize > maximumTextFileBytes {
-                return invalidFile(
+                return fallback(
                     fileName: fileName,
                     filePath: path,
-                    reason: "file too large",
-                    usesFallback: usesFallback
+                    reason: "file too large"
                 )
             }
 
@@ -147,30 +279,27 @@ nonisolated struct CopiedFileTextReader: Sendable {
             let data = try Data(contentsOf: standardizedURL, options: .mappedIfSafe)
             guard !Task.isCancelled else { return nil }
             guard !data.isEmpty else {
-                return invalidFile(
+                return fallback(
                     fileName: fileName,
                     filePath: path,
-                    reason: "empty file",
-                    usesFallback: usesFallback
+                    reason: "empty file"
                 )
             }
             guard data.count <= maximumTextFileBytes else {
-                return invalidFile(
+                return fallback(
                     fileName: fileName,
                     filePath: path,
-                    reason: "file too large",
-                    usesFallback: usesFallback
+                    reason: "file too large"
                 )
             }
             guard let text = decodeText(data) else {
-                return nil
+                return fallback(fileName: fileName, filePath: path, reason: "binary file")
             }
             guard !text.isEmpty else {
-                return invalidFile(
+                return fallback(
                     fileName: fileName,
                     filePath: path,
-                    reason: "empty file",
-                    usesFallback: usesFallback
+                    reason: "empty file"
                 )
             }
 
@@ -179,29 +308,20 @@ nonisolated struct CopiedFileTextReader: Sendable {
             let reason = FileManager.default.fileExists(atPath: path)
                 ? "file unreadable"
                 : "file not found"
-            return invalidFile(
+            return fallback(
                 fileName: fileName,
                 filePath: path,
-                reason: reason,
-                usesFallback: usesFallback
+                reason: reason
             )
         }
-    }
-
-    private func invalidFile(
-        fileName: String,
-        filePath: String,
-        reason: String,
-        usesFallback: Bool
-    ) -> CopiedFileText? {
-        guard usesFallback else { return nil }
-        return fallback(fileName: fileName, filePath: filePath, reason: reason)
     }
 
     private func decodeText(_ data: Data) -> String? {
         if let bomText = decodeByteOrderMarkedText(data) {
             return isTextLike(bomText) ? bomText : nil
         }
+
+        guard !Self.knownBinarySignatures.contains(where: { data.starts(with: $0) }) else { return nil }
 
         if let encoding = detectByteOrderMarklessUTF16(data),
            let text = String(data: data, encoding: encoding),
@@ -298,7 +418,7 @@ nonisolated struct CopiedFileTextReader: Sendable {
 
         for byte in inspected {
             if byte == 0 { return true }
-            if (byte < 0x20 && byte != 0x09 && byte != 0x0A && byte != 0x0D) || byte == 0x7F {
+            if (byte < 0x20 && byte != 0x08 && byte != 0x09 && byte != 0x0A && byte != 0x0D && byte != 0x1B) || byte == 0x7F {
                 suspiciousControls += 1
             }
         }
@@ -315,7 +435,7 @@ nonisolated struct CopiedFileTextReader: Sendable {
             if scalar.value == 0 { return false }
 
             if CharacterSet.controlCharacters.contains(scalar),
-               scalar != "\t", scalar != "\n", scalar != "\r" {
+               scalar != "\u{8}", scalar != "\t", scalar != "\n", scalar != "\r", scalar != "\u{1b}" {
                 suspiciousControls += 1
             }
         }
