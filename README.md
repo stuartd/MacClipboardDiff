@@ -154,15 +154,51 @@ The app includes a Finder Sync extension. Choose **Finder Menu Settings…** in 
 
 The one-file command is hidden when the selection has the same standardized path as the current file capture. Files with matching names in different folders remain comparable. The extension receives only an in-memory, session-salted path fingerprint, and ClipDiff rechecks the path before accepting the comparison.
 
-Finder’s **Copy as Pathname** also works for a single absolute path to a readable, non-empty text file. Copy the pathname, then choose **Compare with current ClipDiff capture** on another text file. ClipDiff finishes any pending pathname capture before starting the comparison, and a new copy prevents an older capture from hiding that command.
+Finder’s **Copy as Pathname** also works, including one or two paths copied together. Copy one pathname, then choose **Compare with current ClipDiff capture** on another text file. ClipDiff finishes any pending pathname capture before starting the comparison, and a new copy prevents an older capture from hiding that command.
 
-With exactly two regular files selected, Finder shows **Compare two selected files with ClipDiff**. Choosing it opens ClipDiff if necessary, reads and classifies the pair, replaces the in-memory comparison pair, and immediately shows the diff; the first Finder selection is **Previous** and the second is **Current**. A comparison containing a binary file leaves the current captures untouched. Other unusable files use the documented filename-and-reason fallback. Zero, more than two, or any folder/non-regular selection shows neither command.
+With exactly two regular files selected, Finder shows **Compare two selected files with ClipDiff**. Choosing it opens ClipDiff if necessary, reads and classifies the pair, replaces the in-memory comparison pair, and immediately shows the diff; the first Finder selection is **Previous** and the second is **Current**. Binary and other unusable files use the documented filename-and-reason fallback, with both sides converted independently. Zero, more than two, or any folder/non-regular selection shows neither command.
 
 ## Copied Files
 
+Finder aliases are resolved to their saved targets before file conversion. This
+works when copying alias objects or their paths, and through both Finder comparison
+commands. Captures use the target's filename and path; target contents follow the
+same encoding, binary and 16 MiB limits as other files. A binary target contributes
+its target filename followed by `(binary file)`, including when paired with text.
+
+Alias resolution uses macOS bookmark APIs without dialogs or automatic volume
+mounting. ClipDiff does not launch the target or rewrite the alias. Chains stop
+after eight aliases or on a cycle. An unresolvable alias contributes its own name
+with `(file unreadable)` rather than exposing the alias record as text; a resolved
+but missing/unusable target uses the normal target filename-and-reason fallback.
+
 Finder file URLs take precedence over incidental path text on the pasteboard. A single copied file becomes one capture; exactly two copied files atomically replace the comparison pair; copies containing more than two files are ignored.
 
-Binary files, including ZIP archives, are ignored without changing the current captures. If either file in a copied pair is binary, the entire copy is ignored.
+Paths copied as text use the same file conversion. Copy one or two absolute
+paths, one per line, with optional matching double quotes around each path.
+Spaces and Unicode are preserved; LF/CRLF line endings and trailing newlines
+are accepted. The first path is **Previous** and the second **Current**.
+
+If any path is unquoted, every path must identify an existing file; otherwise
+the entire clipboard payload stays ordinary text. Fully quoted paths use the
+usual filename/reason fallbacks for missing files and directories. Malformed
+quoting, relative paths, URLs, and paths mixed with prose stay ordinary text.
+Recognized lists of more than two paths are ignored. Binary paths use the same
+filename-and-reason conversion as binary file objects. File checks and reads
+stay off the main actor, and newer clipboard updates supersede pending reads.
+
+
+Binary files, including ZIP archives, contribute their filename followed by
+`(binary file)`, for example `photo.png (binary file)`. Each side of a pair is
+converted independently, so text can be compared with a binary file's reason
+label. This applies to copied files, copied paths, resolved aliases and both
+Finder comparison commands. Raw binary contents are not captured as text.
+
+Binary detection uses known executable/package extensions, format signatures
+(including PDF, images, archives and Mach-O executables), and content inspection.
+Renaming a binary file to `.txt` does not bypass these checks. Scripts, SVG and
+terminal captures containing ANSI escapes remain text when their bytes are usable.
+
 
 For a usable text file, ClipDiff reads and retains the complete decoded contents in memory. It supports UTF-8, BOM-marked UTF-16 and UTF-32, common BOM-less UTF-16, and Windows-1252. Files larger than 16 MiB are not read.
 
@@ -253,6 +289,25 @@ The default view is side-by-side:
 
 There is also a unified view for copying or scanning a compact diff. Diff rows are rendered lazily so larger text files do not eagerly construct every visible row.
 
+Both views highlight changed text within paired lines, keeping emoji and combining
+characters whole. Refinement is bounded: large or costly comparisons retain their
+line-level colours even when inline highlights are skipped.
+
+**Ignore spacing** in the diff window trims leading/trailing whitespace and treats
+internal whitespace runs as one space while comparing. It does not make `a b`
+equal to `ab` or ignore line breaks. The checkbox applies to the displayed pair,
+including its summary and copied diff; it never normalizes the captures or their
+displayed text. Turn it off to restore exact comparison. The choice lasts for the
+current app session and affects the built-in viewer only.
+
+On macOS, smoke-test both views with `timeout = 30` versus `timeout = 60`,
+then with tabs, emoji and combining characters. Resize the window and select/copy
+text across a highlighted line. Compare `  a  b ` with `a\tb`, toggle **Ignore
+spacing** on (No differences) and off (differences restored), and check that the
+copied diff still contains the original whitespace rather than normalized text.
+
+
+
 ## Privacy Limitations
 
 The recent-clear behavior is only a heuristic. An unmarked secret is otherwise indistinguishable from ordinary text, and Swift strings cannot be guaranteed to be securely zeroed. Operating-system paging, process dumps, other clipboard monitors, and macOS clipboard behavior are outside ClipDiff's control.
@@ -261,6 +316,17 @@ Concealed and transient pasteboard markers are advisory and depend on the source
 application providing them. ClipDiff does not guess whether unmarked text
 is sensitive from its contents, length, or source application.
 
+**Copy diff** writes ordinary Unicode text together with
+`org.nspasteboard.ConcealedType` and `org.nspasteboard.TransientType` on the same
+pasteboard item. The complete item is prepared before publication, so clipboard
+managers do not receive an intermediate unmarked text value. Normal text pasting
+still works, and ClipDiff suppresses its own copy event.
+
+These markers ask compatible clipboard managers not to retain the diff. They are
+advisory conventions, not a system-wide guarantee against clipboard history,
+Universal Clipboard syncing, storage or inspection by another app.
+
+
 The built-in viewer keeps the memory-only privacy model. Selecting an external viewer creates an explicit exception because another application cannot compare the captured strings directly. Before the first external comparison, ClipDiff warns that clipboard text may contain secrets and asks for confirmation. Cancelling opens the built-in viewer and creates no files.
 
 After confirmation, each comparison writes two read-only UTF-8 plaintext files to a unique directory below the system temporary directory. ClipDiff attempts to delete that directory after the launched comparison process exits, when ClipDiff exits, and on its next launch. Cleanup is best effort: a crash, power loss, open file handle, or external application may leave or retain a copy. Do not select an external viewer when that disk exposure is unacceptable.
@@ -268,6 +334,10 @@ After confirmation, each comparison writes two read-only UTF-8 plaintext files t
 Only the selected executable path, the one-time warning acknowledgement, the chosen global shortcut, and whether the Start at Login question was handled are stored in app preferences. macOS manages the login-item registration. Clipboard text, previews, diffs, and source paths are never stored there.
 
 ## Tests
+
+The clipboard tests check that copied diffs include both privacy markers and
+remain pasteable as exact text. A macOS-only integration test uses a private
+pasteboard, never the user's general pasteboard, to check the real item formats.
 
 The SwiftPM XCTest suite covers clipboard history, privacy-marker payload
 exclusion, recent clears, copied-file decoding and fallback behavior, filename
@@ -283,6 +353,11 @@ or Finder launches. After building, check the first-launch question and menu
 toggle, change the setting in System Settings and reopen the menu, then sign out
 and back in to verify a quiet launch. Declining the question or turning startup
 off should not cause another question on later launches.
+
+On macOS, the SwiftPM suite also creates real Finder alias files to check text
+and binary targets, unresolved aliases and unchanged alias-file bytes. Smoke-test
+copying an alias and its pathname, alias/file pairs, and both Finder comparison
+commands; confirm the target's filename appears and no target application opens.
 
 For Finder changes, also build the app and extension on macOS with `scripts/create-local-release.sh`, then smoke-test one-file captured-text/captured-file comparisons, the visible no-capture message, capture continuing after a comparison, unchanged clipboard, same-basename labels, unsupported selections, two-file cold start, and external-viewer warning/fallback.
 

@@ -11,6 +11,12 @@ final class ClipDiffController: ObservableObject {
     @Published private(set) var globalShortcut: GlobalShortcut
     @Published private(set) var externalDiffTools: [ExternalDiffToolChoice]
     @Published var viewMode: DiffViewMode = .sideBySide
+    @Published var ignoreSpacing = false {
+        didSet {
+            guard ignoreSpacing != oldValue, let document = activeDiff else { return }
+            activeDiff = DiffEngine.recompare(document, ignoreSpacing: ignoreSpacing)
+        }
+    }
 
     let loginItemManager = LoginItemManager()
 
@@ -162,7 +168,9 @@ final class ClipDiffController: ObservableObject {
             fallbackError = "Could not open \(selectedExternalDiffTool.displayName). Showing the built-in viewer."
         }
 
-        activeDiff = DiffEngine.makeDocument(previous: previousEntry, current: currentEntry)
+        activeDiff = DiffEngine.makeDocument(
+            previous: previousEntry, current: currentEntry, ignoreSpacing: ignoreSpacing
+        )
         lastError = fallbackError
 
         if diffWindowController == nil {
@@ -232,7 +240,7 @@ final class ClipDiffController: ObservableObject {
 
     func compareSelectedFiles(_ fileURLs: [URL]) {
         guard fileURLs.count == 2 else {
-            lastError = "Choose exactly two text files to compare."
+            lastError = "Choose exactly two files to compare."
             NSSound.beep()
             return
         }
@@ -448,11 +456,10 @@ final class ClipDiffController: ObservableObject {
         let fileReader = self.fileReader
 
         pendingFileRead = Task { [weak self] in
-            let fileValue = await fileReader.readValue(fromFullyQualifiedPath: text)
+            let content = await fileReader.readClipboardText(text)
             guard !Task.isCancelled else { return }
             self?.finishTextRead(
-                text,
-                fileValue: fileValue,
+                content,
                 changeCount: changeCount,
                 observedAt: observedAt
             )
@@ -460,8 +467,7 @@ final class ClipDiffController: ObservableObject {
     }
 
     private func finishTextRead(
-        _ text: String,
-        fileValue: CopiedFileText?,
+        _ content: ClipboardObservationContent,
         changeCount: Int,
         observedAt: Date
     ) {
@@ -477,7 +483,7 @@ final class ClipDiffController: ObservableObject {
             ClipboardObservation(
                 changeCount: changeCount,
                 observedAt: observedAt,
-                content: .value(fileValue?.capturedValue ?? CapturedClipboardValue(text: text))
+                content: content
             )
         )
     }

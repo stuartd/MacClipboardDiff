@@ -34,6 +34,8 @@ let package = Package(
                 "ClipboardStore.swift",
                 "CopiedFileTextReader.swift",
                 "DiffEngine.swift",
+                "InlineDiff.swift",
+                "DiffTextFormatting.swift",
                 "ExternalDiffLauncher.swift",
                 "ExternalDiffSettings.swift",
                 "ExternalDiffTool.swift",

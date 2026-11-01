@@ -60,31 +60,32 @@ final class CopiedFileTextReaderTests: XCTestCase {
         XCTAssertEqual(result?.text, "café")
     }
 
-    func testBinaryContentIsIgnoredEvenWithTextExtension() throws {
+    func testBinaryContentHasFallbackEvenWithTextExtension() throws {
         let url = try write("misleading.txt", data: Data([0x01, 0x00, 0x02, 0x7F]))
 
         let result = CopiedFileTextReader().readFile(at: url)
 
-        XCTAssertNil(result)
+        XCTAssertEqual(result, CopiedFileText(text: "misleading.txt (binary file)", fileName: "misleading.txt", filePath: url.standardizedFileURL.path))
     }
 
     func testKnownBinaryExtensionIsNeverDecodedAsText() throws {
-        let url = try write("library.dylib", text: "looks harmless")
-
-        let result = CopiedFileTextReader().readFile(at: url)
-
-        XCTAssertNil(result)
+        for name in ["library.dylib", "library.so", "archive.ZIP", "program.EXE", "library.dll", "installer.msi"] {
+            let url = try write(name, text: "looks harmless")
+            let result = CopiedFileTextReader().readFile(at: url)
+            XCTAssertEqual(result?.text, name + " (binary file)")
+        }
     }
 
-    func testCopiedArchiveIsIgnored() async throws {
+    func testCopiedArchiveHasBinaryFallback() async throws {
         let archive = try write("ClipDiff.Stress-source.ZIP", text: "looks harmless")
 
         let values = await CopiedFileTextReader().readValues(from: [archive])
 
-        XCTAssertTrue(values.isEmpty)
+        XCTAssertEqual(values.map(\.text), ["ClipDiff.Stress-source.ZIP (binary file)"])
+        XCTAssertEqual(values.first?.filePath, archive.standardizedFileURL.path)
     }
 
-    func testCopyContainingBinaryFileIsIgnoredAsAWhole() async throws {
+    func testCopyContainingBinaryFilesConvertsEachSideIndependently() async throws {
         let text = try write("source.txt", text: "source contents")
         let archive = try write("source.zip", data: Data([0x50, 0x4B, 0x03, 0x04]))
         let binary = try write("misleading.txt", data: Data([0x01, 0x00, 0x02, 0x7F]))
@@ -93,7 +94,8 @@ final class CopiedFileTextReaderTests: XCTestCase {
         for fileURLs in [[text, archive], [archive, text], [text, binary], [binary, text], [archive, binary]] {
             let values = await reader.readValues(from: fileURLs)
 
-            XCTAssertTrue(values.isEmpty)
+            XCTAssertEqual(values.map(\.filePath), fileURLs.map { $0.standardizedFileURL.path })
+            XCTAssertEqual(values.map(\.text), fileURLs.map { $0 == text ? "source contents" : $0.lastPathComponent + " (binary file)" })
         }
     }
 
@@ -142,47 +144,28 @@ final class CopiedFileTextReaderTests: XCTestCase {
     func testFullyQualifiedClipboardPathLoadsValidTextFile() async throws {
         let url = try write("clipboard.html", text: "<h1>Not found</h1>")
 
-        let value = await CopiedFileTextReader()
-            .readValue(fromFullyQualifiedPath: url.path)
-
-        XCTAssertEqual(value?.text, "<h1>Not found</h1>")
-        XCTAssertEqual(value?.fileName, "clipboard.html")
-        XCTAssertEqual(value?.filePath, url.standardizedFileURL.path)
-    }
-
-    func testClipboardPathOnlyResolvesWhenFileIsValidForDiff() async throws {
-        let relative = try write("relative.txt", text: "text")
-        let binary = try write("binary.txt", data: Data([0x00, 0x01, 0x02]))
-        let empty = try write("empty-path.txt", data: Data())
-
-        let reader = CopiedFileTextReader()
-        let relativeValue = await reader.readValue(
-            fromFullyQualifiedPath: relative.lastPathComponent
-        )
-        let binaryValue = await reader.readValue(fromFullyQualifiedPath: binary.path)
-        let emptyValue = await reader.readValue(fromFullyQualifiedPath: empty.path)
-        let missingValue = await reader.readValue(
-            fromFullyQualifiedPath: testDirectory.appendingPathComponent("missing.txt").path
-        )
-
-        XCTAssertNil(relativeValue)
-        XCTAssertNil(binaryValue)
-        XCTAssertNil(emptyValue)
-        XCTAssertNil(missingValue)
+        let content = await CopiedFileTextReader().readClipboardText(url.path)
+        XCTAssertEqual(content, .value(CapturedClipboardValue(
+            text: "<h1>Not found</h1>",
+            sourceFileName: "clipboard.html",
+            sourceFilePath: url.standardizedFileURL.path
+        )))
     }
 
     func testPathnameCaptureCanCompareWithAnotherFileAndFiltersOnlyItself() async throws {
         let copied = try write("previous file.txt", text: "old contents")
         let selected = try write("current file.txt", text: "new contents")
         let reader = CopiedFileTextReader()
-        let value = await reader.readValue(fromFullyQualifiedPath: copied.path)
-        let capture = try XCTUnwrap(value)
+        let content = await reader.readClipboardText(copied.path)
+        guard case .value(let capture) = content else {
+            return XCTFail("Expected one pathname capture")
+        }
         let selectedValue = try XCTUnwrap(reader.readFile(at: selected))
         let history = ClipboardHistory()
         history.apply(ClipboardObservation(
             changeCount: 1,
             observedAt: Date(),
-            content: .value(capture.capturedValue)
+            content: .value(capture)
         ))
 
         let identity = FinderCaptureIdentity(
@@ -201,6 +184,73 @@ final class CopiedFileTextReaderTests: XCTestCase {
         ))
         XCTAssertEqual(history.previousEntry?.text, "old contents")
         XCTAssertEqual(history.currentEntry?.text, "new contents")
+    }
+
+    func testBinarySignaturesAreRecognizedEvenWithTextFilenames() throws {
+        let signatures: [[UInt8]] = [
+            Array("%PDF-1.7\nplain-looking header".utf8),
+            Array("GIF87aPrintables".utf8), Array("GIF89aPrintables".utf8),
+            [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A],
+            [0xFF, 0xD8, 0xFF], [0x50, 0x4B, 0x03, 0x04],
+            [0x50, 0x4B, 0x05, 0x06], [0x50, 0x4B, 0x07, 0x08],
+            [0x1F, 0x8B], [0x42, 0x5A, 0x68],
+            [0x37, 0x7A, 0xBC, 0xAF, 0x27, 0x1C], [0x52, 0x61, 0x72, 0x21, 0x1A, 0x07],
+            [0xD0, 0xCF, 0x11, 0xE0, 0xA1, 0xB1, 0x1A, 0xE1], [0x7F, 0x45, 0x4C, 0x46],
+            [0xCA, 0xFE, 0xBA, 0xBE], [0xBE, 0xBA, 0xFE, 0xCA],
+            [0xFE, 0xED, 0xFA, 0xCE], [0xCE, 0xFA, 0xED, 0xFE],
+            [0xFE, 0xED, 0xFA, 0xCF], [0xCF, 0xFA, 0xED, 0xFE]
+        ]
+        for (index, signature) in signatures.enumerated() {
+            let url = try write("renamed\(index).txt", data: Data(signature))
+            let result = CopiedFileTextReader().readFile(at: url)
+            XCTAssertEqual(result?.text, "renamed\(index).txt (binary file)")
+            XCTAssertEqual(result?.filePath, url.standardizedFileURL.path)
+        }
+    }
+
+    func testTextFormatsRemainTextRatherThanBinaryFallbacks() throws {
+        for (name, text) in [
+            ("script.sh", "#!/bin/sh\nprintf 'hello'\n"),
+            ("vector.svg", "<svg><text>Hello</text></svg>"),
+            ("source.txt", "ordinary GIF and PDF discussion"),
+            ("terminal.txt", "\u{1b}[31mred\u{1b}[0m\u{8}\u{8}")
+        ] {
+            let url = try write(name, text: text)
+            XCTAssertEqual(CopiedFileTextReader().readFile(at: url)?.text, text)
+        }
+    }
+
+    func testBomEncodedTextStillTakesPrecedenceOverContentHeuristics() throws {
+        let text = "%PDF-this is actual UTF-16 text"
+        var data = Data([0xFF, 0xFE])
+        data.append(try XCTUnwrap(text.data(using: .utf16LittleEndian)))
+        let url = try write("encoded.txt", data: data)
+        XCTAssertEqual(CopiedFileTextReader().readFile(at: url)?.text, text)
+    }
+
+    func testOversizedUnknownBinaryIsNotReadAndRetainsSizeFallback() throws {
+        let url = try write("large.txt", data: Data([0, 1, 2, 3, 4]))
+        XCTAssertEqual(CopiedFileTextReader(maximumTextFileBytes: 4).readFile(at: url)?.text, "large.txt (file too large)")
+    }
+
+    func testBinaryFallbackFlowsThroughHistoryAndDiffWithoutBinaryPayload() async throws {
+        let text = try write("text.txt", text: "text contents")
+        let binary = try write("photo.png", data: Data([0, 1, 2, 3]))
+        let values = await CopiedFileTextReader().readValues(from: [text, binary])
+        XCTAssertEqual(values.count, 2)
+        guard values.count == 2 else { return }
+        let history = ClipboardHistory()
+        history.apply(ClipboardObservation(changeCount: 1, observedAt: Date(), content: .pair(
+            previous: values[0].capturedValue, current: values[1].capturedValue
+        )))
+        let document = DiffEngine.makeDocument(
+            previous: try XCTUnwrap(history.previousEntry), current: try XCTUnwrap(history.currentEntry)
+        )
+        XCTAssertEqual(document.current.text, "photo.png (binary file)")
+        XCTAssertEqual(document.labels.current, "Current clipboard — photo.png")
+        XCTAssertNil(document.current.sourceFilePath)
+        XCTAssertEqual(DiffEngine.copyableDiff(for: document),
+            "--- Previous clipboard — text.txt\n+++ Current clipboard — photo.png\n- text contents\n+ photo.png (binary file)")
     }
 
     private func write(_ name: String, text: String) throws -> URL {

@@ -10,6 +10,7 @@ private enum ClipboardPrivacyMarker {
     // materialize either file URLs or string data.
     static let concealed = "org.nspasteboard.ConcealedType"
     static let transient = "org.nspasteboard.TransientType"
+    static let exportedDiffTypes = [concealed, transient]
 
     static func excludesCapture(_ typeIdentifiers: [String]) -> Bool {
         typeIdentifiers.contains(concealed) || typeIdentifiers.contains(transient)
@@ -22,8 +23,7 @@ protocol ClipboardPasteboard: AnyObject {
 
     func readClipboardFileURLs() -> [URL]
     func readClipboardString() -> String?
-    func clearClipboardContents()
-    func writeClipboardString(_ text: String)
+    func replaceClipboardString(_ text: String, privacyTypeIdentifiers: [String])
 }
 
 #if canImport(AppKit)
@@ -49,12 +49,16 @@ extension NSPasteboard: ClipboardPasteboard {
         return string(forType: .string)
     }
 
-    func clearClipboardContents() {
+    func replaceClipboardString(_ text: String, privacyTypeIdentifiers: [String]) {
+        let item = NSPasteboardItem()
+        guard item.setString(text, forType: .string) else { return }
+        for identifier in privacyTypeIdentifiers {
+            guard item.setData(Data(), forType: NSPasteboard.PasteboardType(identifier)) else { return }
+        }
+        // Prepare the complete item before publishing: the diff must never be
+        // exposed as an intermediate, unmarked string to clipboard monitors.
         _ = clearContents()
-    }
-
-    func writeClipboardString(_ text: String) {
-        _ = setString(text, forType: .string)
+        _ = writeObjects([item])
     }
 }
 #endif
@@ -107,7 +111,6 @@ final class SystemClipboardStore: ClipboardStore {
     }
 
     func replaceText(_ text: String) {
-        pasteboard.clearClipboardContents()
-        pasteboard.writeClipboardString(text)
+        pasteboard.replaceClipboardString(text, privacyTypeIdentifiers: ClipboardPrivacyMarker.exportedDiffTypes)
     }
 }
