@@ -1,10 +1,10 @@
-name: Build Release
+name: Build Highest Release
 
 on:
   workflow_dispatch:
   push:
     tags:
-      - 'v*'
+      - 'v[0-9]*'
 
 permissions:
   contents: read
@@ -14,9 +14,37 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  eligibility:
+    name: Check highest release tag
+    if: github.event.deleted != true
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      should_build: ${{ steps.check.outputs.should_build }}
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+
+      - name: Check release eligibility
+        id: check
+        shell: bash
+        env:
+          REF_TYPE: ${{ github.ref_type }}
+          REF_NAME: ${{ github.ref_name }}
+          EXPECTED_COMMIT: ${{ github.sha }}
+        run: |
+          if [[ "$REF_TYPE" == tag ]]; then
+            scripts/check-release-tag.sh "$REF_NAME" "$EXPECTED_COMMIT" >> "$GITHUB_OUTPUT"
+          else
+            echo "should_build=true" >> "$GITHUB_OUTPUT"
+          fi
+
   build:
     name: Build ClipDiff for macOS
-    if: github.event.deleted != true
+    needs: eligibility
+    if: needs.eligibility.outputs.should_build == 'true'
     runs-on: macos-latest
     timeout-minutes: 75
     defaults:
@@ -157,13 +185,28 @@ jobs:
     permissions:
       contents: write
     steps:
+      - name: Check out source
+        uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+
+      - name: Recheck highest release tag before publication
+        id: check
+        shell: bash
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+          EXPECTED_COMMIT: ${{ github.sha }}
+        run: scripts/check-release-tag.sh "$RELEASE_TAG" "$EXPECTED_COMMIT" >> "$GITHUB_OUTPUT"
+
       - name: Download Release app
+        if: steps.check.outputs.should_build == 'true'
         uses: actions/download-artifact@v4
         with:
           name: ClipDiff-macOS
           path: release
 
       - name: Publish app on GitHub Releases
+        if: steps.check.outputs.should_build == 'true'
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
