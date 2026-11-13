@@ -3,10 +3,10 @@ import XCTest
 @testable import ClipDiffCore
 
 final class GlobalShortcutTests: XCTestCase {
-    func testDefaultShortcutIsOptionCommandC() {
-        XCTAssertEqual(GlobalShortcut.defaultShortcut.displayString, "⌥⌘C")
+    func testDefaultShortcutIsControlOptionCommandC() {
+        XCTAssertEqual(GlobalShortcut.defaultShortcut.displayString, "⌃⌥⌘C")
         XCTAssertEqual(GlobalShortcut.defaultShortcut.keyCode, 8)
-        XCTAssertEqual(GlobalShortcut.defaultShortcut.modifiers, [.command, .option])
+        XCTAssertEqual(GlobalShortcut.defaultShortcut.modifiers, [.command, .option, .control])
     }
 
     func testShortcutRequiresCommandOptionOrControl() {
@@ -51,6 +51,8 @@ final class GlobalShortcutTests: XCTestCase {
         let store = GlobalShortcutSettingsStore(defaults: defaults)
 
         XCTAssertEqual(store.load(), .defaultShortcut)
+        XCTAssertNil(defaults.object(forKey: "GlobalShortcut.KeyCode"))
+        XCTAssertNil(defaults.object(forKey: "GlobalShortcut.Modifiers"))
 
         defaults.set(999, forKey: "GlobalShortcut.KeyCode")
         defaults.set(0, forKey: "GlobalShortcut.Modifiers")
@@ -59,6 +61,28 @@ final class GlobalShortcutTests: XCTestCase {
         defaults.set(-1, forKey: "GlobalShortcut.KeyCode")
         defaults.set(-1, forKey: "GlobalShortcut.Modifiers")
         XCTAssertEqual(store.load(), .defaultShortcut)
+    }
+
+    func testPreviouslySavedShortcutsArePreservedIncludingOldDefaults() throws {
+        let suiteName = "ClipDiffTests.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        let shortcuts = [
+            GlobalShortcut(keyCode: 8, modifiers: [.command, .option])!,
+            GlobalShortcut(keyCode: 2, modifiers: [.command, .option])!,
+            GlobalShortcut(keyCode: 8, modifiers: [.command, .control])!
+        ]
+        for shortcut in shortcuts {
+            // Use the existing preference format to simulate a choice saved
+            // before the default changed, including an explicit old default.
+            defaults.set(Int(shortcut.keyCode), forKey: "GlobalShortcut.KeyCode")
+            defaults.set(Int(shortcut.modifiers.rawValue), forKey: "GlobalShortcut.Modifiers")
+
+            XCTAssertEqual(GlobalShortcutSettingsStore(defaults: defaults).load(), shortcut)
+            XCTAssertEqual(defaults.integer(forKey: "GlobalShortcut.KeyCode"), Int(shortcut.keyCode))
+            XCTAssertEqual(defaults.integer(forKey: "GlobalShortcut.Modifiers"), Int(shortcut.modifiers.rawValue))
+        }
     }
 
     func testMalformedPreferencesCannotBecomeADifferentValidShortcut() throws {
@@ -84,7 +108,7 @@ final class GlobalShortcutTests: XCTestCase {
         let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
         defer { defaults.removePersistentDomain(forName: suiteName) }
         let store = GlobalShortcutSettingsStore(defaults: defaults)
-        store.save(try XCTUnwrap(GlobalShortcut(keyCode: 2, modifiers: [.command, .control])))
+        store.save(try XCTUnwrap(GlobalShortcut(keyCode: 8, modifiers: [.command, .option])))
         store.save(.defaultShortcut)
         XCTAssertEqual(GlobalShortcutSettingsStore(defaults: defaults).load(), .defaultShortcut)
     }

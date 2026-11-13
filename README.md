@@ -141,12 +141,14 @@ Xcode build, so macOS can find that copy at login.
 
 1. Copy the older text or file.
 2. Copy the newer text or file.
-3. Press `Option-Command-C`, or choose **Show Diff** from the menu bar item. Choose **Change Keyboard Shortcut…** in that menu to record a different global shortcut.
+3. Press `Control-Option-Command-C`, or choose **Show Diff** from the menu bar item. Choose **Change Keyboard Shortcut…** in that menu to record a different global shortcut.
 4. View the diff in the selected viewer. The built-in native window remains the default.
 
 You can also copy exactly two files together in Finder. ClipDiff immediately treats the first file as **Previous** and the second as **Current**.
 
-Custom shortcuts must include Option or Control; Command and Shift are optional. The shortcut recorder checks enabled macOS system shortcuts and ClipDiff’s own menu commands. The same checks run at startup before registering the saved shortcut. It explains known conflicts and registration failures, and keeps the current shortcut active if a replacement fails. While the recorder has focus, pressing the current shortcut records it instead of opening a diff. **Use Default** selects `Option-Command-C`; **Save** applies it, and **Cancel** leaves the saved shortcut unchanged. These checks cannot identify every shortcut used inside other apps.
+Custom shortcuts must include Option or Control; Command and Shift are optional. The shortcut recorder checks enabled macOS system shortcuts and ClipDiff’s own menu commands. The same checks run at startup before registering the saved shortcut. It explains known conflicts and registration failures, and keeps the current shortcut active if a replacement fails. While the recorder has focus, pressing the current shortcut records it instead of opening a diff. **Use Default** selects `Control-Option-Command-C`; **Save** applies it, and **Cancel** leaves the saved shortcut unchanged. These checks cannot identify every shortcut used inside other apps.
+
+The default avoids Finder’s `Option-Command-C` shortcut for **Copy as Pathname**. Users without a saved shortcut adopt the new default automatically. Explicitly saved shortcuts are preserved, including the old default. If you saved `Option-Command-C`, it still conflicts with Finder; choose **Use Default**, then **Save**, to switch.
 
 ## Finder Context Menu
 

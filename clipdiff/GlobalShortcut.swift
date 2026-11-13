@@ -14,9 +14,10 @@ struct GlobalShortcut: Equatable, Sendable {
         static let required: Modifiers = [.command, .option, .control]
     }
 
+    // Leave Finder's Option-Command-C available for Copy as Pathname.
     static let defaultShortcut = GlobalShortcut(
         keyCode: 8,
-        modifiers: [.command, .option]
+        modifiers: [.command, .option, .control]
     )!
 
     let keyCode: UInt32

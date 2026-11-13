@@ -4,7 +4,7 @@
 
 ClipDiff is a tiny native macOS menu bar utility for comparing the last two copied plain-text or text-file values.
 
-Keep it small. This is not an App Store product, not a cloud service, and not a document-management app. The ideal workflow is: copy older text or a text file, copy newer text or a text file, press `Option-Command-C` or choose **Show Diff**, then read or copy the diff.
+Keep it small. This is not an App Store product, not a cloud service, and not a document-management app. The ideal workflow is: copy older text or a text file, copy newer text or a text file, press `Control-Option-Command-C` or choose **Show Diff**, then read or copy the diff.
 
 ## Repository Map
 
@@ -15,7 +15,7 @@ Keep it small. This is not an App Store product, not a cloud service, and not a 
 - `clipdiff/ClipboardStore.swift`: pasteboard access protocol plus the `NSPasteboard` implementation.
 - `clipdiff/CopiedFileTextReader.swift`: bounded, testable text-file decoding and fallback behavior.
 - `clipdiff/MenuContentView.swift`: menu bar popover content and commands.
-- `clipdiff/HotKeyController.swift`: Carbon global hotkey registration for `Option-Command-C`.
+- `clipdiff/HotKeyController.swift`: Carbon global hotkey registration for `Control-Option-Command-C`.
 - `clipdiff/GlobalShortcut.swift`: validated shortcut model and preferences persistence.
 - `clipdiff/ShortcutSettingsWindowController.swift`: native global-shortcut recorder window.
 - `clipdiff/ShortcutRecorderControl.swift`: focus-aware AppKit shortcut capture control.
@@ -66,7 +66,7 @@ Select the `clipdiff` scheme, choose **My Mac**, and press `Cmd-R`.
 - Keep diff logic in `DiffEngine` and models in `ClipboardModels.swift`; do not bury diff behavior inside SwiftUI views.
 - Keep clipboard capture policy in `ClipboardHistory`, file conversion in `CopiedFileTextReader`, and pasteboard access behind `ClipboardStore`.
 - Keep views simple and inspectable. Side-by-side and unified modes should remain native SwiftUI views, not Terminal output or web content.
-- Be careful with the global shortcut. If `Option-Command-C` cannot be registered, the menu command should still work.
+- Be careful with the global shortcut. If `Control-Option-Command-C` cannot be registered, the menu command should still work. Preserve explicitly saved shortcuts when changing the default.
 - Do not add dependencies for this app unless there is a strong reason. The current implementation is intentionally dependency-free.
 
 ## Testing And Verification
@@ -86,14 +86,14 @@ Manual smoke test after changes:
 1. Run `scripts/create-local-release.sh`.
 2. Copy one plain-text value.
 3. Copy another plain-text value, which may be identical when verifying that there are no changes.
-4. Press `Option-Command-C`, or choose **Show Diff** from the menu bar item.
+4. Press `Control-Option-Command-C`, or choose **Show Diff** from the menu bar item.
 5. Check side-by-side and unified views.
 6. Use **Copy diff** and confirm the clipboard receives unified diff text.
 7. Quit ClipDiff, reopen it, and confirm **Show Diff** stays disabled until two new values are copied.
 8. Copy one text file, then another, and verify filenames appear in both diff modes.
 9. Copy exactly two text files together and verify their Finder order becomes previous/current.
 10. Copy a binary file (alone and paired with a text file) and verify its filename plus `(binary file)` is captured, with both pair entries converted independently. Copy an empty file, directory, and oversized file and verify the fallback reason.
-11. Change the global shortcut, verify the new shortcut works and the old one does not, then restore the default.
+11. Change the global shortcut, verify the new shortcut works and the old one does not, then restore the default. With a file selected in Finder, confirm `Option-Command-C` copies its pathname without opening ClipDiff, then confirm `Control-Option-Command-C` opens the diff.
 12. Open **Finder Menu Settings…**, enable the Finder extension in macOS System Settings, select one regular file, and verify **Compare with current ClipDiff capture** compares a retained capture as Previous with that file as Current without changing the clipboard. Check the visible no-capture message, capture continuing after a comparison, same-basename labels, and binary-file reason labels.
 13. Select exactly two regular files and verify **Compare two selected files with ClipDiff** opens their diff, including on cold start. Verify both commands are absent for zero, more than two, folders, and special files, and check the external-viewer warning/fallback.
 
