@@ -76,29 +76,18 @@ struct MenuContentView: View {
 
     private var diffViewerMenu: some View {
         Menu {
-            Button {
-                controller.selectExternalDiffTool(nil)
-            } label: {
-                viewerChoiceLabel(
-                    "Built-in viewer",
-                    isSelected: controller.selectedExternalDiffTool == nil
-                )
-            }
-
-            if !controller.externalDiffTools.isEmpty {
-                Divider()
+            // Use native menu selection state so the tick appears in the menu margin.
+            Picker("Diff viewer", selection: diffViewerSelection) {
+                Text("Built-in viewer")
+                    .tag(nil as String?)
 
                 ForEach(controller.externalDiffTools) { choice in
-                    Button {
-                        controller.selectExternalDiffTool(choice)
-                    } label: {
-                        viewerChoiceLabel(
-                            choice.displayName,
-                            isSelected: controller.selectedExternalDiffTool?.id == choice.id
-                        )
-                    }
+                    Text(choice.displayName)
+                        .tag(choice.id as String?)
                 }
             }
+            .pickerStyle(.inline)
+            .labelsHidden()
 
             Divider()
 
@@ -121,13 +110,14 @@ struct MenuContentView: View {
         }
     }
 
-    @ViewBuilder
-    private func viewerChoiceLabel(_ title: String, isSelected: Bool) -> some View {
-        if isSelected {
-            Label(title, systemImage: "checkmark")
-        } else {
-            Text(title)
-        }
+    private var diffViewerSelection: Binding<String?> {
+        Binding(
+            get: { controller.selectedExternalDiffTool?.id },
+            set: { selectedID in
+                let choice = controller.externalDiffTools.first { $0.id == selectedID }
+                controller.selectExternalDiffTool(choice)
+            }
+        )
     }
 }
 
