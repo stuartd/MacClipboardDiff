@@ -18,9 +18,9 @@ fi
 TARGET_COMMIT="$(git rev-parse --verify 'HEAD^{commit}')"
 
 # Consult the remote so an unpushed local tag cannot become the latest release.
-REMOTE_TAGS="$(git ls-remote --tags --refs --sort=-version:refname "$REMOTE" 'v*')"
+REMOTE_TAGS="$(git ls-remote --tags --refs --sort=-version:refname "$REMOTE" 'v[0-9]*')"
 if [[ -z "$REMOTE_TAGS" ]]; then
-    echo "No v* release tags found on $REMOTE." >&2
+    echo "No v[0-9]* release tags found on $REMOTE." >&2
     exit 1
 fi
 IFS=$'\t' read -r OLD_REMOTE_OBJECT TAG_REF <<< "${REMOTE_TAGS%%$'\n'*}"

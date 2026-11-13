@@ -12,12 +12,18 @@ The app is copied to `releases/ClipDiff.app` and opened.
 
 ## GitHub Release Build
 
-Push a tag starting with `v` to build and publish a GitHub Release:
+Push the highest version tag to build and publish a GitHub Release:
 
 ```sh
 git tag v0.9.0
 git push origin v0.9.0
 ```
+
+Release tags start with `v` followed by a digit. The workflow checks the remote
+tags using Git's version ordering before allocating a macOS build runner. Lower
+tags, deleted tags, and runs whose tag has moved to another commit are skipped.
+It checks again before publishing to skip builds superseded while they ran.
+A typo such as `v.09.1101` is excluded from release-tag selection.
 
 The workflow runs the core tests and builds the app and Finder extension in
 Release mode for Apple Silicon and Intel. Tagged builds sign both bundles with
@@ -37,7 +43,7 @@ then run:
 scripts/retag-latest.sh
 ```
 
-This selects the highest `v*` version tag on `origin`, deletes it remotely,
+This selects the highest `v[0-9]*` version tag on `origin`, deletes it remotely,
 recreates it locally as a lightweight tag at `HEAD`, and pushes it to trigger
 the release workflow. It also works when the tag already points at `HEAD`.
 The existing GitHub Release is retained; a successful build replaces its assets.
@@ -51,12 +57,31 @@ Its integration tests use temporary local Git repositories:
 python3 scripts/tests/test_retag_latest.py
 ```
 
-For a build from a branch, choose **Actions → Build Release → Run workflow**.
+For a build from a branch, choose **Actions → Build Highest Release → Run workflow**.
 Download the **ClipDiff-macOS** artifact from that run. Branch builds use ad hoc
 signing, require no Apple credentials, and do not publish a GitHub Release.
 They are not notarized, so macOS Gatekeeper may require approval before opening
-them. Manually rerunning the workflow on a `v*` tag uses the notarized release
-path.
+them. Manually running the workflow on a release tag uses the same highest-tag
+check and notarized release path.
+
+### Switching from the old release workflow
+
+After merging the highest-tag workflow, disable the legacy `release.yml` workflow
+in Actions (or run `gh workflow disable release.yml --repo stuartd/MacClipboardDiff`).
+The replacement is `release-highest.yml`, named **Build Highest Release**. Then
+create a new highest tag, or use `scripts/retag-latest.sh` from the updated commit
+to rebuild the existing highest tag with the replacement workflow.
+
+This switch matters because tag pushes and reruns use the workflow stored in
+the tagged commit. Updating `main` alone does not retrofit checks into historical
+tags. Disabling the legacy workflow prevents those old definitions from building
+or being rerun. Existing tags, releases, and release assets do not need removal.
+
+The highest-tag checks have local integration tests using temporary Git remotes:
+
+```sh
+python3 scripts/tests/test_release_eligibility.py
+```
 
 About shows **Version 0.9.321** for a tagged release such as `v0.9.321`, and the
 eight-character commit for other builds (for example, **Version 1a3445bd**),
