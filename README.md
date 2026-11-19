@@ -30,9 +30,9 @@ Release mode for Apple Silicon and Intel. Tagged builds sign both bundles with
 Developer ID, submit the app to Apple for notarization, staple the accepted
 ticket, and verify the signature, ticket, and Gatekeeper acceptance after
 extracting the final ZIP. Only then does it publish a GitHub Release with
-generated release notes, `ClipDiff-macOS.zip`, and a SHA-256 checksum. Extract
-the ZIP to get `ClipDiff.app`. Tags containing a hyphen, such as `v0.9.0-rc.1`,
-create prereleases. Rerunning a successful tag build replaces the assets on its
+`ClipDiff-macOS.zip` and a SHA-256 checksum. New releases have an empty
+description. Extract the ZIP to get `ClipDiff.app`. Tags containing a hyphen, such
+as `v0.9.0-rc.1`, create prereleases. Rerunning a successful tag build replaces the assets on its
 existing release. Missing credentials or failed notarization stop publication;
 tagged builds never fall back to ad hoc signing.
 

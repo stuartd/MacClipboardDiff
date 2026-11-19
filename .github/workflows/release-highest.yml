@@ -225,6 +225,6 @@ jobs:
               release/ClipDiff-macOS.zip release/ClipDiff-macOS.zip.sha256 \
               --verify-tag \
               --title "ClipDiff $RELEASE_TAG" \
-              --generate-notes \
+              --notes "" \
               "${RELEASE_FLAGS[@]}"
           fi
