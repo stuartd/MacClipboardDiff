@@ -1,4 +1,5 @@
 import Foundation
+import OSLog
 
 #if canImport(AppKit)
 import AppKit
@@ -51,14 +52,22 @@ extension NSPasteboard: ClipboardPasteboard {
 
     func replaceClipboardString(_ text: String, privacyTypeIdentifiers: [String]) {
         let item = NSPasteboardItem()
-        guard item.setString(text, forType: .string) else { return }
+        guard item.setString(text, forType: .string) else {
+            ClipDiffLog.app.error("Could not prepare the diff for copying")
+            return
+        }
         for identifier in privacyTypeIdentifiers {
-            guard item.setData(Data(), forType: NSPasteboard.PasteboardType(identifier)) else { return }
+            guard item.setData(Data(), forType: NSPasteboard.PasteboardType(identifier)) else {
+                ClipDiffLog.app.error("Could not mark the copied diff as private")
+                return
+            }
         }
         // Prepare the complete item before publishing: the diff must never be
         // exposed as an intermediate, unmarked string to clipboard monitors.
         _ = clearContents()
-        _ = writeObjects([item])
+        if !writeObjects([item]) {
+            ClipDiffLog.app.error("Could not write the diff to the clipboard")
+        }
     }
 }
 #endif

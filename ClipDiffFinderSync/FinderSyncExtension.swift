@@ -1,7 +1,9 @@
 import AppKit
 import FinderSync
+import OSLog
 
 final class FinderSyncExtension: FIFinderSync {
+    private static let log = Logger(subsystem: "stuartd.clipdiff", category: "Finder")
     private static let pairMenuTitle = "Compare two selected files with ClipDiff"
     private static let currentMenuTitle = "Compare with current ClipDiff capture"
     private var captureIdentity: FinderCaptureIdentity?
@@ -64,6 +66,7 @@ final class FinderSyncExtension: FIFinderSync {
         configuration.addsToRecentItems = false
 
         guard let requestURL = Self.comparisonRequestURL(for: urls, operation: operation) else {
+            Self.log.error("Could not prepare the Finder comparison request")
             NSSound.beep()
             return
         }
@@ -73,7 +76,8 @@ final class FinderSyncExtension: FIFinderSync {
             withApplicationAt: containingApplicationURL,
             configuration: configuration
         ) { _, error in
-            if error != nil {
+            if let error {
+                Self.log.error("Could not deliver the Finder comparison, code \((error as NSError).code, privacy: .public)")
                 NSSound.beep()
             }
         }

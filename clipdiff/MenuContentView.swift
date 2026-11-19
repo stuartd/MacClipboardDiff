@@ -46,6 +46,8 @@ struct MenuContentView: View {
 
             Divider()
 
+            UpdateMenuContent(checker: controller.updateChecker)
+
             Button {
                 controller.showAbout()
             } label: {
@@ -118,6 +120,35 @@ struct MenuContentView: View {
                 controller.selectExternalDiffTool(choice)
             }
         )
+    }
+}
+
+private struct UpdateMenuContent: View {
+    @ObservedObject var checker: UpdateChecker
+
+    var body: some View {
+        if let version = checker.availableVersion {
+            Button("ClipDiff \(version.displayName) available…") {
+                UpdateAlerts.show(.available(version))
+            }
+        }
+
+        Button(checker.isChecking ? "Checking for Updates…" : "Check for Updates…") {
+            Task {
+                UpdateAlerts.show(await checker.check(manual: true))
+            }
+        }
+        .disabled(checker.isChecking)
+
+        Toggle("Automatically Check for Updates", isOn: Binding(
+            get: { checker.automaticPreference == true },
+            set: { enabled in
+                if !enabled || UpdateAlerts.askForConsent() {
+                    checker.setAutomaticChecks(enabled)
+                }
+            }
+        ))
+        .disabled(checker.installedVersion == nil)
     }
 }
 

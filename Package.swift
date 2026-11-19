@@ -24,10 +24,12 @@ let package = Package(
                 "DiffWindowView.swift",
                 "ExternalDiffToolDiscovery.swift",
                 "MenuContentView.swift",
-                "ShortcutSettingsWindowController.swift"
+                "ShortcutSettingsWindowController.swift",
+                "UpdateAlerts.swift"
             ],
             sources: [
                 "AppVersionFormatter.swift",
+                "ClipDiffLog.swift",
                 "ClipboardHistory.swift",
                 "ClipboardModels.swift",
                 "ClipboardObservation.swift",
@@ -43,12 +45,15 @@ let package = Package(
                 "FinderComparisonRequest.swift",
                 "FinderCaptureIdentity.swift",
                 "FinderSingleFileRequestState.swift",
+                "GitHubReleaseClient.swift",
                 "GlobalShortcut.swift",
                 "GlobalShortcutValidator.swift",
                 "HotKeyController.swift",
                 "LoginItemManager.swift",
+                "ReleaseVersion.swift",
                 "ShortcutRecorderControl.swift",
-                "SingleInstanceLock.swift"
+                "SingleInstanceLock.swift",
+                "UpdateChecker.swift"
             ]
         ),
         .testTarget(

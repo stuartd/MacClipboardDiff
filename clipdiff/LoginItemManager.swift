@@ -1,6 +1,7 @@
 import AppKit
 import Combine
 import CoreServices
+import OSLog
 import ServiceManagement
 
 @MainActor
@@ -135,6 +136,7 @@ final class LoginItemManager: ObservableObject {
                 try service.unregister()
             }
         } catch {
+            ClipDiffLog.app.error("Could not change Start at Login, code \((error as NSError).code, privacy: .public)")
             refreshStatus()
             presenter.showLoginItemError(error)
             return

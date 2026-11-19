@@ -2,6 +2,7 @@ import AppKit
 import Combine
 import FinderSync
 import Foundation
+import OSLog
 
 @MainActor
 final class ClipDiffController: ObservableObject {
@@ -19,6 +20,9 @@ final class ClipDiffController: ObservableObject {
     }
 
     let loginItemManager = LoginItemManager()
+    let updateChecker = UpdateChecker(
+        releaseTag: Bundle.main.object(forInfoDictionaryKey: "ClipDiffReleaseTag") as? String
+    )
 
     private let clipboard: ClipboardStore
     private let fileReader: CopiedFileTextReader
@@ -547,6 +551,7 @@ final class ClipDiffController: ObservableObject {
         pendingSelectedFileRead = nil
 
         guard values.count == 2 else {
+            ClipDiffLog.app.error("Finder comparison could not read both selected files")
             lastError = "The selected files could not be read."
             NSSound.beep()
             return

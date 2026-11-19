@@ -1,4 +1,5 @@
 import Foundation
+import OSLog
 
 final class ExternalDiffLauncher {
     private struct ActiveComparison {
@@ -30,6 +31,7 @@ final class ExternalDiffLauncher {
         let launcherURL = choice.tool.launcherExecutablePath.map(URL.init(fileURLWithPath:))
             ?? choice.executableURL
         guard FileManager.default.isExecutableFile(atPath: launcherURL.path) else {
+            ClipDiffLog.app.error("External diff executable is unavailable")
             return false
         }
 
@@ -42,6 +44,7 @@ final class ExternalDiffLauncher {
                 currentSourceFileName: current.sourceFileName
             )
         } catch {
+            ClipDiffLog.app.error("Could not prepare external diff inputs, code \((error as NSError).code, privacy: .public)")
             return false
         }
 
@@ -67,6 +70,7 @@ final class ExternalDiffLauncher {
         do {
             try process.run()
         } catch {
+            ClipDiffLog.app.error("Could not launch the external diff viewer, code \((error as NSError).code, privacy: .public)")
             process.terminationHandler = nil
             workspace.delete(files.directoryURL)
             return false

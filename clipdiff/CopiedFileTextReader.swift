@@ -1,4 +1,5 @@
 import Foundation
+import OSLog
 
 struct CopiedFileText: Equatable, Sendable {
     let text: String
@@ -180,6 +181,7 @@ nonisolated struct CopiedFileTextReader: Sendable {
             return readResolvedFile(at: target)
         } catch {
             guard !Task.isCancelled else { return nil }
+            ClipDiffLog.app.error("Could not resolve copied file, code \((error as NSError).code, privacy: .public)")
             // Never decode an alias record as clipboard text when resolution fails.
             return fallback(fileName: source.lastPathComponent, filePath: source.path, reason: "file unreadable")
         }
@@ -305,6 +307,7 @@ nonisolated struct CopiedFileTextReader: Sendable {
 
             return CopiedFileText(text: text, fileName: fileName, filePath: path)
         } catch {
+            ClipDiffLog.app.error("Could not read copied file, code \((error as NSError).code, privacy: .public)")
             let reason = FileManager.default.fileExists(atPath: path)
                 ? "file unreadable"
                 : "file not found"

@@ -1,4 +1,5 @@
 import AppKit
+import OSLog
 
 @MainActor
 final class ClipDiffApplicationDelegate: NSObject, NSApplicationDelegate {
@@ -7,6 +8,7 @@ final class ClipDiffApplicationDelegate: NSObject, NSApplicationDelegate {
     private let existingApplication: NSRunningApplication?
     private let startupError: Error?
     private var pendingOpenRequests: [[URL]] = []
+    private var suppressUpdatePrompt = false
 
     override init() {
         do {
@@ -36,12 +38,15 @@ final class ClipDiffApplicationDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         if let controller {
+            ClipDiffLog.app.notice("ClipDiff started")
             // The initial Apple event is available during this callback, before
             // the run-loop callback below. Login/service launches stay quiet.
             if LoginItemLaunchContext.isAutomaticLaunch(NSAppleEventManager.shared().currentAppleEvent) {
                 controller.loginItemManager.suppressAutomaticPrompt()
+                suppressUpdatePrompt = true
             }
             controller.startGlobalShortcut()
+            controller.updateChecker.start()
             // Wait for initial file-open events and let the launch finish. Use a
             // run-loop callback so an alert doesn't block main-queue work.
             perform(#selector(promptToStartAtLogin), with: nil, afterDelay: 0)
@@ -55,6 +60,21 @@ final class ClipDiffApplicationDelegate: NSObject, NSApplicationDelegate {
     @objc private func promptToStartAtLogin() {
         guard NSApp.modalWindow == nil else { return }
         controller?.loginItemManager.promptIfNeeded()
+        perform(#selector(promptForAutomaticUpdates), with: nil, afterDelay: 0)
+    }
+
+    @objc private func promptForAutomaticUpdates() {
+        guard !suppressUpdatePrompt, NSApp.modalWindow == nil,
+              let checker = controller?.updateChecker, checker.installedVersion != nil,
+              checker.automaticPreference == nil else { return }
+        checker.setAutomaticChecks(UpdateAlerts.askForConsent())
+    }
+
+    func applicationWillTerminate(_ notification: Notification) {
+        if let controller {
+            controller.updateChecker.stop()
+            ClipDiffLog.app.notice("ClipDiff stopped")
+        }
     }
 
     func application(_ application: NSApplication, open urls: [URL]) {
@@ -63,8 +83,12 @@ final class ClipDiffApplicationDelegate: NSObject, NSApplicationDelegate {
             return
         }
         controller.loginItemManager.suppressAutomaticPrompt()
+        suppressUpdatePrompt = true
         if urls.count == 1, urls[0].scheme?.lowercased() == FinderComparisonRequest.scheme {
-            guard let request = FinderComparisonRequest(url: urls[0]) else { return }
+            guard let request = FinderComparisonRequest(url: urls[0]) else {
+                ClipDiffLog.app.error("Received an invalid Finder comparison request")
+                return
+            }
             switch request.operation {
             case .compareSelectedFiles:
                 controller.compareSelectedFiles(request.fileURLs)
@@ -116,10 +140,12 @@ final class ClipDiffApplicationDelegate: NSObject, NSApplicationDelegate {
             try? await Task.sleep(nanoseconds: 50_000_000)
         }
         // Do not start a second controller if the owner cannot be activated.
+        ClipDiffLog.app.error("Timed out waiting for the running ClipDiff instance")
         NSApp.terminate(nil)
     }
 
     private func reportStartupFailure(_ error: Error) {
+        ClipDiffLog.app.error("ClipDiff startup failed with code \((error as NSError).code, privacy: .public)")
         let alert = NSAlert()
         alert.messageText = "ClipDiff couldn’t finish launching."
         alert.informativeText = error.localizedDescription

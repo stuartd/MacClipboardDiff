@@ -162,6 +162,38 @@ captured text.
 Enable startup from the Release app at a stable location, rather than a temporary
 Xcode build, so macOS can find that copy at login.
 
+## Update checks
+
+On the first ordinary launch of a tagged build, ClipDiff offers to enable
+automatic update checks. Either answer is remembered. The menu has
+**Automatically Check for Updates** and **Check for Updates…**. Manual checks
+work with automatic checks off. When enabled, ClipDiff checks at launch and
+while it is running, with at least 24 hours between automatic attempts.
+
+ClipDiff compares its version tag with the latest stable GitHub release. A newer
+release appears in the menu and opens its GitHub page when requested. To install,
+quit ClipDiff, download and unzip `ClipDiff-macOS.zip`, replace your app, and
+reopen it. Rebuilds under the same tag do not count as a new version. Local
+builds identified by a commit hash cannot compare release versions.
+
+Update checks contact `api.github.com` with normal web request metadata,
+including your IP address. They send no clipboard data, file information, or
+preferences.
+
+## Diagnostic log
+
+ClipDiff uses macOS unified logging for startup, shutdown, operational errors,
+and update checks. Update events include the request URL, HTTP status when
+available, validated version tags, and the result or reason a check was skipped.
+The log excludes clipboard contents, file names and paths, raw HTTP responses,
+and exception messages.
+
+Read the past day's events in Terminal, or filter for `stuartd.clipdiff` in Console.
+
+```sh
+log show --last 1d --predicate 'subsystem == "stuartd.clipdiff"'
+```
+
 ## Workflow
 
 1. Copy the older text or file.
