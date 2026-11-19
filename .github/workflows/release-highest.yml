@@ -1,4 +1,5 @@
 name: Build Highest Release
+run-name: ${{ github.ref_type == 'tag' && startsWith(github.ref_name, 'v') && format('Building release for tag {0}', github.ref_name) || '' }}
 
 on:
   workflow_dispatch:
