@@ -3,26 +3,25 @@ import XCTest
 @testable import ClipDiffCore
 
 final class ExternalDiffSettingsTests: XCTestCase {
-    func testPersistsViewerPreferencesAndRecommendationOverride() throws {
+    func testPersistsViewerPreferencesWithoutOverwritingRecommendationOverride() throws {
         let suiteName = "ClipDiffTests.\(UUID().uuidString)"
         let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
         defer { defaults.removePersistentDomain(forName: suiteName) }
         let store = ExternalDiffSettingsStore(defaults: defaults)
+        defaults.set(true, forKey: "ExternalDiff.ForceMacDiffRecommendation")
+        var settings = store.load()
+        defaults.set(false, forKey: "ExternalDiff.ForceMacDiffRecommendation")
 
-        store.save(
-            ExternalDiffSettings(
-                selectedExecutablePath: "/Applications/Diff.app/Contents/MacOS/diff",
-                plaintextWarningAcknowledged: true,
-                forceMacDiffRecommendation: true
-            )
-        )
+        settings.selectedExecutablePath = "/Applications/Diff.app/Contents/MacOS/diff"
+        settings.plaintextWarningAcknowledged = true
+        store.save(settings)
 
         XCTAssertEqual(
             store.load(),
             ExternalDiffSettings(
                 selectedExecutablePath: "/Applications/Diff.app/Contents/MacOS/diff",
                 plaintextWarningAcknowledged: true,
-                forceMacDiffRecommendation: true
+                forceMacDiffRecommendation: false
             )
         )
         XCTAssertEqual(defaults.dictionaryRepresentation().keys.filter {

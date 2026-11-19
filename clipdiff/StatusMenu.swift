@@ -24,6 +24,7 @@ final class StatusMenu: NSMenu, NSMenuDelegate {
         let showDiagnosticLog = modifierFlags().contains(.option)
         let login = controller.loginItemManager
         login.refreshStatus()
+        controller.refreshExternalDiffTools()
 
         // Keep the shortcut hint in the label. Carbon handles the global shortcut.
         let shortcutHint = controller.globalShortcut.displayString.map(String.init).joined(separator: "\u{2009}")

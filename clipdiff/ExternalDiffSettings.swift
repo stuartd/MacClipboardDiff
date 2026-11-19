@@ -14,6 +14,7 @@ final class ExternalDiffSettingsStore {
     private enum Key {
         static let selectedExecutablePath = "ExternalDiff.SelectedExecutablePath"
         static let plaintextWarningAcknowledged = "ExternalDiff.PlaintextWarningAcknowledged"
+        // This test override is managed outside the app.
         static let forceMacDiffRecommendation = "ExternalDiff.ForceMacDiffRecommendation"
     }
 
@@ -40,10 +41,6 @@ final class ExternalDiffSettingsStore {
         defaults.set(
             settings.plaintextWarningAcknowledged,
             forKey: Key.plaintextWarningAcknowledged
-        )
-        defaults.set(
-            settings.forceMacDiffRecommendation,
-            forKey: Key.forceMacDiffRecommendation
         )
     }
 }
