@@ -1,5 +1,4 @@
 import Foundation
-import OSLog
 
 final class ExternalDiffLauncher {
     private struct ActiveComparison {
@@ -44,7 +43,7 @@ final class ExternalDiffLauncher {
                 currentSourceFileName: current.sourceFileName
             )
         } catch {
-            ClipDiffLog.app.error("Could not prepare external diff inputs, code \((error as NSError).code, privacy: .public)")
+            ClipDiffLog.app.error("Could not prepare external diff inputs, code \((error as NSError).code)")
             return false
         }
 
@@ -70,7 +69,7 @@ final class ExternalDiffLauncher {
         do {
             try process.run()
         } catch {
-            ClipDiffLog.app.error("Could not launch the external diff viewer, code \((error as NSError).code, privacy: .public)")
+            ClipDiffLog.app.error("Could not launch the external diff viewer, code \((error as NSError).code)")
             process.terminationHandler = nil
             workspace.delete(files.directoryURL)
             return false

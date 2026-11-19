@@ -8,13 +8,13 @@ Keep it small. This is not an App Store product, not a cloud service, and not a 
 
 ## Repository Map
 
-- `clipdiff/clipdiffApp.swift`: SwiftUI app entry point and menu bar extra.
+- `clipdiff/clipdiffApp.swift`: SwiftUI app entry point.
 - `clipdiff/ClipDiffController.swift`: clipboard polling, in-memory capture state, diff creation, hotkey action, and window coordination.
 - `clipdiff/ClipboardHistory.swift`: in-memory clipboard capture policy and testable history behavior.
 - `clipdiff/ClipboardObservation.swift`: typed clipboard snapshots and history observations.
 - `clipdiff/ClipboardStore.swift`: pasteboard access protocol plus the `NSPasteboard` implementation.
 - `clipdiff/CopiedFileTextReader.swift`: bounded, testable text-file decoding and fallback behavior.
-- `clipdiff/MenuContentView.swift`: menu bar popover content and commands.
+- `clipdiff/StatusMenu.swift`: native menu bar commands.
 - `clipdiff/HotKeyController.swift`: Carbon global hotkey registration for `Control-Option-Command-C`.
 - `clipdiff/GlobalShortcut.swift`: validated shortcut model and preferences persistence.
 - `clipdiff/ShortcutSettingsWindowController.swift`: native global-shortcut recorder window.

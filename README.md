@@ -182,13 +182,18 @@ preferences.
 
 ## Diagnostic log
 
-ClipDiff uses macOS unified logging for startup, shutdown, operational errors,
-and update checks. Update events include the request URL, HTTP status when
-available, validated version tags, and the result or reason a check was skipped.
-The log excludes clipboard contents, file names and paths, raw HTTP responses,
-and exception messages.
+Hold **Option (⌥)** as you click ClipDiff’s menu bar icon to reveal **Open
+Diagnostic Log…**. It shows recent startup, shutdown, error, and update events
+from `~/Library/Logs/ClipDiff/ClipDiff.log` and its previous copy. Each file is
+capped at 256 KiB.
 
-Read the past day's events in Terminal, or filter for `stuartd.clipdiff` in Console.
+Update events include the request URL, HTTP status when available, validated
+version tags, and the result or reason a check was skipped. The log excludes
+clipboard contents, copied file names and paths, raw HTTP responses, and
+exception messages.
+
+The app and Finder extension also write to the macOS unified log. Filter for
+`stuartd.clipdiff` in Console, or use Terminal.
 
 ```sh
 log show --last 1d --predicate 'subsystem == "stuartd.clipdiff"'

@@ -2,7 +2,6 @@ import AppKit
 import Combine
 import FinderSync
 import Foundation
-import OSLog
 
 @MainActor
 final class ClipDiffController: ObservableObject {
@@ -39,6 +38,7 @@ final class ClipDiffController: ObservableObject {
     private var singleFileRequestState = FinderSingleFileRequestState()
     private var timer: Timer?
     private var diffWindowController: DiffWindowController?
+    private var diagnosticLogWindowController: DiagnosticLogWindowController?
     private var shortcutSettingsWindowController: ShortcutSettingsWindowController?
     private var hotKeyController: HotKeyController?
     private var applicationWillTerminateObserver: NSObjectProtocol?
@@ -82,12 +82,9 @@ final class ClipDiffController: ObservableObject {
 
         startMonitoring()
 
-        // A menu-bar menu can open without activating this accessory app. Keep
-        // this subscription on the controller so it also works before SwiftUI
-        // constructs the menu.
+        // The status menu refreshes this independently when opened.
         systemSettingsStatusObserver = NotificationCenter.default
             .publisher(for: NSApplication.didBecomeActiveNotification)
-            .merge(with: NotificationCenter.default.publisher(for: NSMenu.didBeginTrackingNotification))
             .sink { [weak self] _ in
                 self?.loginItemManager.refreshStatus()
             }
@@ -361,6 +358,13 @@ final class ClipDiffController: ObservableObject {
 
     func showAbout() {
         AppAbout.show()
+    }
+
+    func showDiagnosticLog() {
+        if diagnosticLogWindowController == nil {
+            diagnosticLogWindowController = DiagnosticLogWindowController()
+        }
+        diagnosticLogWindowController?.show()
     }
 
     private func confirmExternalDiffRisk() -> Bool {

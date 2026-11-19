@@ -1,5 +1,4 @@
 import AppKit
-import OSLog
 
 @MainActor
 final class ClipDiffApplicationDelegate: NSObject, NSApplicationDelegate {
@@ -9,6 +8,7 @@ final class ClipDiffApplicationDelegate: NSObject, NSApplicationDelegate {
     private let startupError: Error?
     private var pendingOpenRequests: [[URL]] = []
     private var suppressUpdatePrompt = false
+    private var statusItem: NSStatusItem?
 
     override init() {
         do {
@@ -38,6 +38,11 @@ final class ClipDiffApplicationDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         if let controller {
+            let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
+            statusItem.button?.image = NSImage(systemSymbolName: "doc.on.clipboard", accessibilityDescription: "ClipDiff")
+            statusItem.button?.toolTip = "ClipDiff"
+            statusItem.menu = StatusMenu(controller: controller)
+            self.statusItem = statusItem
             ClipDiffLog.app.notice("ClipDiff started")
             // The initial Apple event is available during this callback, before
             // the run-loop callback below. Login/service launches stay quiet.
@@ -75,6 +80,7 @@ final class ClipDiffApplicationDelegate: NSObject, NSApplicationDelegate {
             controller.updateChecker.stop()
             ClipDiffLog.app.notice("ClipDiff stopped")
         }
+        ClipDiffLog.file?.flush()
     }
 
     func application(_ application: NSApplication, open urls: [URL]) {
@@ -145,7 +151,7 @@ final class ClipDiffApplicationDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func reportStartupFailure(_ error: Error) {
-        ClipDiffLog.app.error("ClipDiff startup failed with code \((error as NSError).code, privacy: .public)")
+        ClipDiffLog.app.error("ClipDiff startup failed with code \((error as NSError).code)")
         let alert = NSAlert()
         alert.messageText = "ClipDiff couldn’t finish launching."
         alert.informativeText = error.localizedDescription

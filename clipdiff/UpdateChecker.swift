@@ -1,6 +1,5 @@
 import Combine
 import Foundation
-import OSLog
 
 @MainActor
 final class UpdateChecker: ObservableObject {
@@ -68,7 +67,7 @@ final class UpdateChecker: ObservableObject {
     func setAutomaticChecks(_ enabled: Bool) {
         defaults.set(enabled, forKey: Key.automatic)
         automaticPreference = enabled
-        ClipDiffLog.updates.notice("Automatic update checks enabled=\(enabled, privacy: .public)")
+        ClipDiffLog.updates.notice("Automatic update checks enabled=\(enabled)")
         if enabled {
             checkAutomatically()
         } else if pendingIsAutomatic {
@@ -82,7 +81,7 @@ final class UpdateChecker: ObservableObject {
 
         func decision(_ outcome: Outcome, _ reason: String) -> Outcome {
             ClipDiffLog.updates.notice(
-                "Update check mode=\(mode, privacy: .public) installed=\(installedTag, privacy: .public) result=\(reason, privacy: .public)"
+                "Update check mode=\(mode) installed=\(installedTag) result=\(reason)"
             )
             return outcome
         }
@@ -121,7 +120,7 @@ final class UpdateChecker: ObservableObject {
         do {
             let published = try await request.value
             guard !request.isCancelled else { return decision(.skipped, "cancelled") }
-            ClipDiffLog.updates.notice("GitHub published version=\(published.tag, privacy: .public)")
+            ClipDiffLog.updates.notice("GitHub published version=\(published.tag)")
             guard published.isNewer(than: installedVersion) else {
                 availableVersion = nil
                 defaults.removeObject(forKey: Key.availableTag)
@@ -134,13 +133,13 @@ final class UpdateChecker: ObservableObject {
             guard !request.isCancelled else { return decision(.skipped, "cancelled") }
             switch error {
             case GitHubReleaseClient.Failure.httpStatus(let code):
-                ClipDiffLog.updates.error("Update request failed with HTTP status \(code, privacy: .public)")
+                ClipDiffLog.updates.error("Update request failed with HTTP status \(code)")
             case GitHubReleaseClient.Failure.responseTooLarge:
                 ClipDiffLog.updates.error("Update response exceeded the size limit")
             case GitHubReleaseClient.Failure.invalidResponse:
                 ClipDiffLog.updates.error("Update response did not contain a valid stable release")
             default:
-                ClipDiffLog.updates.error("Update request failed with code \((error as NSError).code, privacy: .public)")
+                ClipDiffLog.updates.error("Update request failed with code \((error as NSError).code)")
             }
             return decision(.failed, "check failed")
         }

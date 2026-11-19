@@ -1,5 +1,4 @@
 import Foundation
-import OSLog
 
 nonisolated struct GitHubReleaseClient {
     private static let endpoint = URL(string: "https://api.github.com/repos/stuartd/MacClipboardDiff/releases/latest")!
@@ -52,12 +51,12 @@ nonisolated struct GitHubReleaseClient {
         var request = URLRequest(url: endpoint)
         request.setValue("ClipDiff", forHTTPHeaderField: "User-Agent")
         request.setValue("application/vnd.github+json", forHTTPHeaderField: "Accept")
-        ClipDiffLog.updates.notice("GET \(endpoint.absoluteString, privacy: .public)")
+        ClipDiffLog.updates.notice("GET \(endpoint.absoluteString)")
 
         let (bytes, response) = try await session.bytes(for: request)
         defer { bytes.task.cancel() }
         guard let response = response as? HTTPURLResponse else { throw Failure.invalidResponse }
-        ClipDiffLog.updates.notice("GitHub HTTP status=\(response.statusCode, privacy: .public)")
+        ClipDiffLog.updates.notice("GitHub HTTP status=\(response.statusCode)")
         guard response.statusCode == 200 else { throw Failure.httpStatus(response.statusCode) }
         guard response.expectedContentLength <= maximumResponseBytes else { throw Failure.responseTooLarge }
 

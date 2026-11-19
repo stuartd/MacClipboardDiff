@@ -6,12 +6,10 @@ struct clipdiffApp: App {
     private var appDelegate
 
     var body: some Scene {
-        MenuBarExtra("ClipDiff", systemImage: "doc.on.clipboard",
-                     isInserted: .constant(appDelegate.controller != nil)) {
-            if let controller = appDelegate.controller {
-                MenuContentView(controller: controller)
-            }
+        // Keep SwiftUI's application and window commands. AppKit owns the status menu.
+        Settings { EmptyView() }
+        .commands {
+            CommandGroup(replacing: .appSettings) {}
         }
-        .menuBarExtraStyle(.menu)
     }
 }

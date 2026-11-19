@@ -1,6 +1,5 @@
 import Carbon
 import Foundation
-import OSLog
 
 private let clipDiffHotKeySignature: OSType = 0x434C4446
 private let clipDiffHotKeyID: UInt32 = 1
@@ -44,7 +43,7 @@ final class HotKeyController {
     @discardableResult
     func updateShortcut(_ shortcut: GlobalShortcut) -> Bool {
         guard eventHandlerStatus == noErr else {
-            ClipDiffLog.app.error("Global shortcut event handler failed, status \(self.eventHandlerStatus, privacy: .public)")
+            ClipDiffLog.app.error("Global shortcut event handler failed, status \(self.eventHandlerStatus)")
             lastError = .eventHandlerFailed(eventHandlerStatus)
             return false
         }
@@ -147,7 +146,7 @@ final class CarbonHotKeyBackend: HotKeyBackend {
 
         guard status == noErr, let reference else {
             let failureStatus = status == noErr ? OSStatus(eventInternalErr) : status
-            ClipDiffLog.app.error("Global shortcut registration failed, status \(failureStatus, privacy: .public)")
+            ClipDiffLog.app.error("Global shortcut registration failed, status \(failureStatus)")
             return .failure(.registrationFailure(failureStatus))
         }
         return .success(reference)

@@ -1,5 +1,4 @@
 import AppKit
-import OSLog
 
 @MainActor
 enum UpdateAlerts {

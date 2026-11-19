@@ -20,11 +20,12 @@ let package = Package(
                 "clipdiffApp.swift",
                 "ClipDiffApplicationDelegate.swift",
                 "ClipDiffController.swift",
+                "DiagnosticLogWindowController.swift",
                 "DiffWindowController.swift",
                 "DiffWindowView.swift",
                 "ExternalDiffToolDiscovery.swift",
-                "MenuContentView.swift",
                 "ShortcutSettingsWindowController.swift",
+                "StatusMenu.swift",
                 "UpdateAlerts.swift"
             ],
             sources: [
