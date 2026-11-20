@@ -27,14 +27,14 @@ A typo such as `v.09.1101` is excluded from release-tag selection.
 
 The workflow runs the core tests and builds the app and Finder extension in
 Release mode for Apple Silicon and Intel. Tagged builds sign both bundles with
-Developer ID, submit the app to Apple for notarization, staple the accepted
-ticket, and verify the signature, ticket, and Gatekeeper acceptance after
-extracting the final ZIP. Only then does it publish a GitHub Release with
-`ClipDiff-macOS.zip` and a SHA-256 checksum. New releases have an empty
-description. Extract the ZIP to get `ClipDiff.app`. Tags containing a hyphen, such
-as `v0.9.0-rc.1`, create prereleases. Rerunning a successful tag build replaces the assets on its
-existing release. Missing credentials or failed notarization stop publication;
-tagged builds never fall back to ad hoc signing.
+Developer ID and put them in a signed disk image. The workflow submits the disk
+image to Apple for notarization, staples the ticket, and verifies the disk image
+and the app inside it before publishing `ClipDiff-macOS.dmg` and its SHA-256
+checksum. Open the disk image and drag `ClipDiff.app` to **Applications**.
+New releases have an empty description. Tags containing a hyphen, such as
+`v0.9.0-rc.1`, create prereleases. Rerunning a successful tag build replaces
+matching assets on its existing release. Missing credentials or failed
+notarization stop publication.
 
 To rebuild the latest release tag from the current commit, commit your changes,
 then run:
@@ -46,7 +46,7 @@ scripts/retag-latest.sh
 This selects the highest `v[0-9]*` version tag on `origin`, deletes it remotely,
 recreates it locally as a lightweight tag at `HEAD`, and pushes it to trigger
 the release workflow. It also works when the tag already points at `HEAD`.
-The existing GitHub Release is retained; a successful build replaces its assets.
+The existing GitHub Release is retained. A successful build replaces matching assets.
 The script requires a clean checkout, leaves branches and other tags alone, and
 attempts to restore the previous tag if recreation fails. An optional argument
 selects another remote, for example `scripts/retag-latest.sh upstream`.
@@ -59,7 +59,7 @@ python3 scripts/tests/test_retag_latest.py
 
 For a build from a branch, choose **Actions → Build Highest Release → Run workflow**.
 Download the **ClipDiff-macOS** artifact from that run. Branch builds use ad hoc
-signing, require no Apple credentials, and do not publish a GitHub Release.
+signing, require no Apple credentials, and produce a ZIP as a workflow artifact.
 They are not notarized, so macOS Gatekeeper may require approval before opening
 them. Manually running the workflow on a release tag uses the same highest-tag
 check and notarized release path.
@@ -138,9 +138,10 @@ NOTARY_PROFILE="ClipDiff-Notary" \
 ```
 
 The input app must contain both Intel and Apple Silicon executables, including
-the Finder extension. This modifies its signatures and adds the notarization
-ticket. The verified ZIP and checksum go in the output directory, alongside
-notarization diagnostics. This command does not publish a GitHub Release.
+the Finder extension. The script re-signs both bundles and staples the
+notarization ticket to the disk image. The verified DMG and checksum go in the
+output directory, alongside notarization diagnostics. This command does not
+publish a GitHub Release.
 
 ## Running ClipDiff
 
@@ -172,9 +173,9 @@ while it is running, with at least 24 hours between automatic attempts.
 
 ClipDiff compares its version tag with the latest stable GitHub release. A newer
 release appears in the menu and opens its GitHub page when requested. To install,
-quit ClipDiff, download and unzip `ClipDiff-macOS.zip`, replace your app, and
-reopen it. Rebuilds under the same tag do not count as a new version. Local
-builds identified by a commit hash cannot compare release versions.
+quit ClipDiff, open `ClipDiff-macOS.dmg`, and replace your copy of `ClipDiff.app`
+before reopening it. Rebuilds under the same tag do not count as a new version.
+Local builds identified by a commit hash cannot compare release versions.
 
 Update checks contact `api.github.com` with normal web request metadata,
 including your IP address. They send no clipboard data, file information, or

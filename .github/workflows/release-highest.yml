@@ -155,7 +155,8 @@ jobs:
           name: ClipDiff-macOS
           path: |
             ${{ runner.temp }}/clipdiff-release/ClipDiff-macOS.zip
-            ${{ runner.temp }}/clipdiff-release/ClipDiff-macOS.zip.sha256
+            ${{ runner.temp }}/clipdiff-release/ClipDiff-macOS.dmg
+            ${{ runner.temp }}/clipdiff-release/ClipDiff-macOS.dmg.sha256
           if-no-files-found: error
           retention-days: 30
 
@@ -216,14 +217,14 @@ jobs:
         run: |
           if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
             gh release upload "$RELEASE_TAG" \
-              release/ClipDiff-macOS.zip release/ClipDiff-macOS.zip.sha256 --clobber
+              release/ClipDiff-macOS.dmg release/ClipDiff-macOS.dmg.sha256 --clobber
           else
             RELEASE_FLAGS=()
             if [[ "$RELEASE_TAG" == *-* ]]; then
               RELEASE_FLAGS+=(--prerelease)
             fi
             gh release create "$RELEASE_TAG" \
-              release/ClipDiff-macOS.zip release/ClipDiff-macOS.zip.sha256 \
+              release/ClipDiff-macOS.dmg release/ClipDiff-macOS.dmg.sha256 \
               --verify-tag \
               --title "ClipDiff $RELEASE_TAG" \
               --notes "" \

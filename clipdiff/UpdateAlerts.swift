@@ -21,7 +21,7 @@ enum UpdateAlerts {
         switch outcome {
         case .available(let version):
             alert.messageText = "ClipDiff \(version.displayName) is available."
-            alert.informativeText = "Open the GitHub release page to download ClipDiff-macOS.zip."
+            alert.informativeText = "Open the GitHub release page to download the update."
             alert.addButton(withTitle: "View Release")
             alert.addButton(withTitle: "Close").keyEquivalent = "\u{1b}"
             NSApp.activate(ignoringOtherApps: true)

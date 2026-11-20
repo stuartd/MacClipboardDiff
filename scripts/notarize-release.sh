@@ -19,7 +19,7 @@ if [[ ! -d "$APP_PATH" || ! -d "$EXTENSION_PATH" ]]; then
 fi
 
 NOTARY_ARGS=(--keychain-profile "$NOTARY_PROFILE")
-SIGNING_ARGS=(--options runtime --timestamp)
+SIGNING_ARGS=(--timestamp)
 IDENTITY_ARGS=(-v -p codesigning)
 if [[ -n "${SIGNING_KEYCHAIN:-}" ]]; then
     NOTARY_ARGS+=(--keychain "$SIGNING_KEYCHAIN")
@@ -54,8 +54,12 @@ done
 mkdir -p "$OUTPUT_DIR/notarization"
 OUTPUT_DIR="$(cd "$OUTPUT_DIR" && pwd)"
 WORK_DIR="$(mktemp -d "$OUTPUT_DIR/.notarization.XXXXXX")"
+MOUNT_POINT=""
 cleanup() {
     local result=$?
+    if [[ -n "$MOUNT_POINT" ]]; then
+        hdiutil detach "$MOUNT_POINT" || true
+    fi
     if [[ $result == 0 ]]; then
         rm -rf "$WORK_DIR"
     else
@@ -66,17 +70,25 @@ trap cleanup EXIT
 
 # Sign nested code first, with its own entitlements; never use --deep to sign.
 # The host app is intentionally unsandboxed and needs no entitlements.
-codesign --force --sign "$IDENTITY_HASH" "${SIGNING_ARGS[@]}" \
+codesign --force --sign "$IDENTITY_HASH" "${SIGNING_ARGS[@]}" --options runtime \
     --entitlements "$REPO_ROOT/ClipDiffFinderSync/ClipDiffFinderSync.entitlements" \
     "$EXTENSION_PATH"
-codesign --force --sign "$IDENTITY_HASH" "${SIGNING_ARGS[@]}" "$APP_PATH"
+codesign --force --sign "$IDENTITY_HASH" "${SIGNING_ARGS[@]}" --options runtime "$APP_PATH"
 codesign --verify --deep --strict --verbose=2 "$APP_PATH"
 
-ditto -c -k --sequesterRsrc --keepParent "$APP_PATH" "$WORK_DIR/notarization.zip"
+DMG_NAME="ClipDiff-macOS.dmg"
+DMG_PATH="$WORK_DIR/$DMG_NAME"
+IMAGE_ROOT="$WORK_DIR/image"
+mkdir "$IMAGE_ROOT"
+ditto "$APP_PATH" "$IMAGE_ROOT/$APP_BUNDLE_NAME"
+ln -s /Applications "$IMAGE_ROOT/Applications"
+hdiutil create -srcfolder "$IMAGE_ROOT" -volname ClipDiff -fs HFS+ -format UDZO "$DMG_PATH"
+codesign --sign "$IDENTITY_HASH" "${SIGNING_ARGS[@]}" --identifier stuartd.clipdiff.dmg "$DMG_PATH"
+
 SUBMISSION="$OUTPUT_DIR/notarization/submission.json"
 NOTARY_LOG="$OUTPUT_DIR/notarization/log.json"
 SUBMIT_RESULT=0
-xcrun notarytool submit "$WORK_DIR/notarization.zip" \
+xcrun notarytool submit "$DMG_PATH" \
     "${NOTARY_ARGS[@]}" \
     --wait --timeout 30m --output-format json > "$SUBMISSION" || SUBMIT_RESULT=$?
 cat "$SUBMISSION"
@@ -91,24 +103,26 @@ if [[ -n "$SUBMISSION_ID" ]]; then
 fi
 STATUS="$(plutil -extract status raw -o - "$SUBMISSION" 2>/dev/null || true)"
 if [[ $SUBMIT_RESULT != 0 || "$STATUS" != Accepted ]]; then
-    echo "Notarization did not complete with Accepted status; no release ZIP was produced." >&2
+    echo "Notarization did not complete with Accepted status; no release disk image was produced." >&2
     exit 1
 fi
 
-xcrun stapler staple "$APP_PATH"
-xcrun stapler validate "$APP_PATH"
-spctl --assess --type execute --verbose=4 "$APP_PATH"
+xcrun stapler staple "$DMG_PATH"
+xcrun stapler validate "$DMG_PATH"
+hdiutil verify "$DMG_PATH"
+codesign --verify --verbose=2 "$DMG_PATH"
+spctl --assess --type open --context context:primary-signature --verbose=4 "$DMG_PATH"
 
-# Stapling changes the bundle. Verify the exact archive that users download.
-ZIP_NAME="ClipDiff-macOS.zip"
-ditto -c -k --sequesterRsrc --keepParent "$APP_PATH" "$WORK_DIR/$ZIP_NAME"
-ditto -x -k "$WORK_DIR/$ZIP_NAME" "$WORK_DIR/check"
-CHECKED_APP="$WORK_DIR/check/$APP_BUNDLE_NAME"
-codesign --verify --deep --strict --verbose=2 "$CHECKED_APP"
-xcrun stapler validate "$CHECKED_APP"
-spctl --assess --type execute --verbose=4 "$CHECKED_APP"
+# Check the exact app bundle included in the finished disk image.
+CHECK_DIR="$WORK_DIR/check"
+mkdir "$CHECK_DIR"
+hdiutil attach "$DMG_PATH" -readonly -nobrowse -mountpoint "$CHECK_DIR"
+MOUNT_POINT="$CHECK_DIR"
+codesign --verify --deep --strict --verbose=2 "$MOUNT_POINT/$APP_BUNDLE_NAME"
+hdiutil detach "$MOUNT_POINT"
+MOUNT_POINT=""
 
-mv "$WORK_DIR/$ZIP_NAME" "$OUTPUT_DIR/$ZIP_NAME"
-(cd "$OUTPUT_DIR" && shasum -a 256 "$ZIP_NAME" > "$ZIP_NAME.sha256")
-cat "$OUTPUT_DIR/$ZIP_NAME.sha256"
-echo "Verified notarized release: $OUTPUT_DIR/$ZIP_NAME"
+(cd "$WORK_DIR" && shasum -a 256 "$DMG_NAME" > "$DMG_NAME.sha256")
+mv "$DMG_PATH" "$WORK_DIR/$DMG_NAME.sha256" "$OUTPUT_DIR/"
+cat "$OUTPUT_DIR/$DMG_NAME.sha256"
+echo "Verified notarized release: $OUTPUT_DIR/$DMG_NAME"
