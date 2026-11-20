@@ -21,13 +21,26 @@ final class UpdateCheckerTests: XCTestCase {
         }
     }
 
+    func testReleaseVersionsOrderSameDayRevisionsNumerically() throws {
+        let orderedTags = [
+            "v0.9.1120", "v0.9.1120.2-rc.1", "v0.9.1120.2", "v0.9.1120.10", "v0.9.1121"
+        ]
+        let versions = try orderedTags.map { try XCTUnwrap(ReleaseVersion(tag: $0)) }
+        for (older, newer) in zip(versions, versions.dropFirst()) {
+            XCTAssertTrue(newer.isNewer(than: older))
+            XCTAssertFalse(older.isNewer(than: newer))
+        }
+        XCTAssertNil(ReleaseVersion(tag: "v0.9.1120.02"))
+        XCTAssertNil(ReleaseVersion(tag: "v0.9.1120.2.1"))
+    }
+
     func testGitHubReleaseRequiresAStableTagAndUsesTheKnownRepositoryForLinks() throws {
-        let payload = Data(#"{"tag_name":"v0.9.1114","draft":false,"prerelease":false,"html_url":"https://example.com/"}"#.utf8)
+        let payload = Data(#"{"tag_name":"v0.9.1120.2","draft":false,"prerelease":false,"html_url":"https://example.com/"}"#.utf8)
         let version = try GitHubReleaseClient.decodeRelease(payload)
-        XCTAssertEqual(version.tag, "v0.9.1114")
+        XCTAssertEqual(version.tag, "v0.9.1120.2")
         XCTAssertEqual(
             GitHubReleaseClient.releasePage(for: version).absoluteString,
-            "https://github.com/stuartd/MacClipboardDiff/releases/tag/v0.9.1114"
+            "https://github.com/stuartd/MacClipboardDiff/releases/tag/v0.9.1120.2"
         )
         for payload in [
             #"{"tag_name":"v0.9.1114","draft":true,"prerelease":false}"#,
@@ -42,8 +55,8 @@ final class UpdateCheckerTests: XCTestCase {
     @MainActor
     func testManualCheckWorksWithoutConsentAndRemembersNewRelease() async {
         let defaults = MemoryDefaults()
-        let checker = UpdateChecker(releaseTag: "v0.9.1113", defaults: defaults) {
-            ReleaseVersion(tag: "v0.9.1114")!
+        let checker = UpdateChecker(releaseTag: "v0.9.1120.2", defaults: defaults) {
+            ReleaseVersion(tag: "v0.9.1120.10")!
         }
 
         guard case .skipped = await checker.check(manual: false) else {
@@ -53,12 +66,12 @@ final class UpdateCheckerTests: XCTestCase {
         guard case .available(let version) = await checker.check(manual: true) else {
             return XCTFail("Expected an available update")
         }
-        XCTAssertEqual(version.tag, "v0.9.1114")
+        XCTAssertEqual(version.tag, "v0.9.1120.10")
         XCTAssertNil(checker.automaticPreference)
 
-        let relaunched = UpdateChecker(releaseTag: "v0.9.1113", defaults: defaults)
-        let upgraded = UpdateChecker(releaseTag: "v0.9.1114", defaults: defaults)
-        XCTAssertEqual(relaunched.availableVersion?.tag, "v0.9.1114")
+        let relaunched = UpdateChecker(releaseTag: "v0.9.1120.2", defaults: defaults)
+        let upgraded = UpdateChecker(releaseTag: "v0.9.1120.10", defaults: defaults)
+        XCTAssertEqual(relaunched.availableVersion?.tag, "v0.9.1120.10")
         XCTAssertNil(upgraded.availableVersion)
     }
 

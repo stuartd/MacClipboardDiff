@@ -2,7 +2,7 @@ import Foundation
 
 nonisolated struct ReleaseVersion: Sendable {
     private static let pattern = try! NSRegularExpression(
-        pattern: #"\Av(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(?:-([0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?\z"#
+        pattern: #"\Av(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(?:\.(0|[1-9][0-9]*))?(?:-([0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?\z"#
     )
 
     let tag: String
@@ -16,19 +16,22 @@ nonisolated struct ReleaseVersion: Sendable {
               let match = Self.pattern.firstMatch(in: tag, range: NSRange(tag.startIndex..., in: tag)) else {
             return nil
         }
-        let prerelease = Range(match.range(at: 4), in: tag)
+        let prerelease = Range(match.range(at: 5), in: tag)
             .map { tag[$0].split(separator: ".") } ?? []
         guard !prerelease.contains(where: { $0.count > 1 && $0.first == "0" && Self.isNumeric($0) }) else {
             return nil
         }
         self.tag = tag
-        numbers = (1...3).map { tag[Range(match.range(at: $0), in: tag)!] }
+        numbers = (1...4).compactMap { Range(match.range(at: $0), in: tag).map { tag[$0] } }
         self.prerelease = prerelease
     }
 
     func isNewer(than other: ReleaseVersion) -> Bool {
         for (left, right) in zip(numbers, other.numbers) where left != right {
             return Self.numberIsGreater(left, than: right)
+        }
+        if numbers.count != other.numbers.count {
+            return numbers.count > other.numbers.count
         }
         if prerelease.isEmpty || other.prerelease.isEmpty {
             return prerelease.isEmpty && !other.prerelease.isEmpty
