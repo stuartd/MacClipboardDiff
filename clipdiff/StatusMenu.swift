@@ -113,12 +113,12 @@ final class StatusMenu: NSMenu, NSMenuDelegate {
         let checker = controller.updateChecker
         var items: [NSMenuItem] = []
         if let version = checker.availableVersion {
-            items.append(ActionMenuItem("ClipDiff \(version.displayName) available…") {
-                UpdateAlerts.show(.available(version))
+            items.append(ActionMenuItem("Upgrade Available…") {
+                UpdateAlerts.showUpgrade(version, checker: checker)
             })
         }
         let check = ActionMenuItem(checker.isChecking ? "Checking for Updates…" : "Check for Updates…") {
-            Task { UpdateAlerts.show(await checker.check(manual: true)) }
+            Task { UpdateAlerts.show(await checker.check(manual: true), checker: checker) }
         }
         check.isEnabled = !checker.isChecking
         items.append(check)

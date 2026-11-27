@@ -16,23 +16,39 @@ enum UpdateAlerts {
         return alert.runModal() == .alertFirstButtonReturn
     }
 
-    static func show(_ outcome: UpdateChecker.Outcome) {
+    static func showUpgrade(_ version: ReleaseVersion, checker: UpdateChecker) {
+        checker.markUpgradeOffered(version)
+
         let alert = NSAlert()
-        switch outcome {
-        case .available(let version):
-            alert.messageText = "ClipDiff \(version.displayName) is available."
-            alert.informativeText = "Open the GitHub release page to download the update."
-            alert.addButton(withTitle: "View Release")
-            alert.addButton(withTitle: "Close").keyEquivalent = "\u{1b}"
-            NSApp.activate(ignoringOtherApps: true)
-            guard alert.runModal() == .alertFirstButtonReturn else { return }
-            if !NSWorkspace.shared.open(GitHubReleaseClient.releasePage(for: version)) {
+        alert.messageText = "A ClipDiff upgrade is available."
+        alert.informativeText = "Open the download page? Choose Later to be reminded the next time you open ClipDiff."
+        alert.addButton(withTitle: "Later").keyEquivalent = "\r"
+        alert.addButton(withTitle: "No")
+        alert.addButton(withTitle: "Yes")
+        NSApp.activate(ignoringOtherApps: true)
+
+        switch alert.runModal() {
+        case .alertThirdButtonReturn:
+            let releasePage = GitHubReleaseClient.releasePage(for: version)
+            if !NSWorkspace.shared.open(releasePage) {
                 ClipDiffLog.updates.error("Could not open the GitHub release page")
                 let errorAlert = NSAlert()
                 errorAlert.messageText = "Couldn’t open the release page."
-                errorAlert.informativeText = GitHubReleaseClient.releasePage(for: version).absoluteString
+                errorAlert.informativeText = "Visit the ClipDiff GitHub releases page to download the upgrade."
                 errorAlert.runModal()
             }
+        case .alertSecondButtonReturn:
+            checker.skipUpgrade(version)
+        default:
+            checker.deferUpgrade(version)
+        }
+    }
+
+    static func show(_ outcome: UpdateChecker.Outcome, checker: UpdateChecker) {
+        let alert = NSAlert()
+        switch outcome {
+        case .available(let version):
+            showUpgrade(version, checker: checker)
             return
         case .current:
             alert.messageText = "ClipDiff is up to date."

@@ -15,6 +15,7 @@ final class UpdateChecker: ObservableObject {
         static let automatic = "UpdateChecks.Automatic"
         static let lastAutomaticAttempt = "UpdateChecks.LastAutomaticAttempt"
         static let availableTag = "UpdateChecks.AvailableTag"
+        static let skippedTag = "UpdateChecks.SkippedTag"
     }
 
     let installedVersion: ReleaseVersion?
@@ -28,6 +29,7 @@ final class UpdateChecker: ObservableObject {
     private var timer: Timer?
     private var pending: Task<ReleaseVersion, Error>?
     private var pendingIsAutomatic = false
+    private var offeredUpgradeTags: Set<String> = []
 
     init(
         releaseTag: String?,
@@ -62,6 +64,27 @@ final class UpdateChecker: ObservableObject {
         timer?.invalidate()
         timer = nil
         pending?.cancel()
+    }
+
+    var upgradeToOffer: ReleaseVersion? {
+        guard !isChecking, let availableVersion,
+              !offeredUpgradeTags.contains(availableVersion.tag),
+              defaults.string(forKey: Key.skippedTag) != availableVersion.tag else { return nil }
+        return availableVersion
+    }
+
+    func markUpgradeOffered(_ version: ReleaseVersion) {
+        offeredUpgradeTags.insert(version.tag)
+    }
+
+    func skipUpgrade(_ version: ReleaseVersion) {
+        defaults.set(version.tag, forKey: Key.skippedTag)
+    }
+
+    func deferUpgrade(_ version: ReleaseVersion) {
+        if defaults.string(forKey: Key.skippedTag) == version.tag {
+            defaults.removeObject(forKey: Key.skippedTag)
+        }
     }
 
     func setAutomaticChecks(_ enabled: Bool) {

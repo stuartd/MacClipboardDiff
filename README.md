@@ -152,7 +152,7 @@ built version, quit the running app first; quitting discards its captured text.
 On its first ordinary launch, ClipDiff asks whether to **Start at Login**. Either
 answer is remembered; the menu toggle lets you change it later. If first launched
 for a Finder comparison, the question waits until the next ordinary launch.
-Login launches stay quiet, showing only the menu bar icon. The toggle follows
+Login launches skip the setup question. The toggle follows
 the actual macOS setting, including changes made in System Settings. If macOS
 requires approval, the menu says so and offers **Open Login Items…**.
 
@@ -171,8 +171,10 @@ automatic update checks. Either answer is remembered. The menu has
 work with automatic checks off. When enabled, ClipDiff checks at launch and
 while it is running, with at least 24 hours between automatic attempts.
 
-ClipDiff compares its version tag with the latest stable GitHub release. A newer
-release appears in the menu and opens its GitHub page when requested. To install,
+ClipDiff compares its version tag with the latest stable GitHub release. When an
+upgrade is available, ClipDiff shows a prompt and adds **Upgrade Available…** to
+the menu. **Yes** opens the download page. **No** skips reminders for that release.
+**Later** is the default and reminds you the next time ClipDiff starts. To install,
 quit ClipDiff, open `ClipDiff-macOS.dmg`, and replace your copy of `ClipDiff.app`
 before reopening it. Rebuilds under the same tag do not count as a new version.
 Local builds identified by a commit hash cannot compare release versions.
