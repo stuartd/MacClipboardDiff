@@ -6,9 +6,9 @@ enum UpdateAlerts {
         let alert = NSAlert()
         alert.messageText = "Check for ClipDiff updates automatically?"
         alert.informativeText = """
-        ClipDiff can contact api.github.com up to once a day to look for new releases. GitHub receives your IP address and normal request metadata. Update checks send no clipboard contents or file information.
+        If set, ClipDiff will check github.com/stuartd/MacClipboardDiff daily to check for a new release. 
 
-        You can change this in the ClipDiff menu. To install an update, download it from GitHub yourself.
+        If not set, you can check for updates manually from the ClipDiff menu.
         """
         alert.addButton(withTitle: "Enable")
         alert.addButton(withTitle: "Not Now").keyEquivalent = "\u{1b}"
