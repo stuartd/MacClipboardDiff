@@ -9,8 +9,6 @@ nonisolated struct ReleaseVersion: Sendable {
     private let numbers: [Substring]
     private let prerelease: [Substring]
 
-    var displayName: String { String(tag.dropFirst()) }
-
     init?(tag: String) {
         guard tag.utf8.count <= 256,
               let match = Self.pattern.firstMatch(in: tag, range: NSRange(tag.startIndex..., in: tag)) else {

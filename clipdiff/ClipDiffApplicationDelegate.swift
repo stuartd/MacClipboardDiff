@@ -1,4 +1,5 @@
 import AppKit
+import Combine
 
 @MainActor
 final class ClipDiffApplicationDelegate: NSObject, NSApplicationDelegate {
@@ -7,8 +8,9 @@ final class ClipDiffApplicationDelegate: NSObject, NSApplicationDelegate {
     private let existingApplication: NSRunningApplication?
     private let startupError: Error?
     private var pendingOpenRequests: [[URL]] = []
-    private var suppressUpdatePrompt = false
+    private var suppressUpdateConsentPrompt = false
     private var statusItem: NSStatusItem?
+    private var upgradePromptObservation: AnyCancellable?
 
     override init() {
         do {
@@ -45,10 +47,10 @@ final class ClipDiffApplicationDelegate: NSObject, NSApplicationDelegate {
             self.statusItem = statusItem
             ClipDiffLog.app.notice("ClipDiff started")
             // The initial Apple event is available during this callback, before
-            // the run-loop callback below. Login/service launches stay quiet.
+            // the run-loop callback below. Skip setup questions on login/service launches.
             if LoginItemLaunchContext.isAutomaticLaunch(NSAppleEventManager.shared().currentAppleEvent) {
                 controller.loginItemManager.suppressAutomaticPrompt()
-                suppressUpdatePrompt = true
+                suppressUpdateConsentPrompt = true
             }
             controller.startGlobalShortcut()
             controller.updateChecker.start()
@@ -63,16 +65,31 @@ final class ClipDiffApplicationDelegate: NSObject, NSApplicationDelegate {
     }
 
     @objc private func promptToStartAtLogin() {
-        guard NSApp.modalWindow == nil else { return }
-        controller?.loginItemManager.promptIfNeeded()
+        if NSApp.modalWindow == nil {
+            controller?.loginItemManager.promptIfNeeded()
+        }
         perform(#selector(promptForAutomaticUpdates), with: nil, afterDelay: 0)
     }
 
     @objc private func promptForAutomaticUpdates() {
-        guard !suppressUpdatePrompt, NSApp.modalWindow == nil,
-              let checker = controller?.updateChecker, checker.installedVersion != nil,
-              checker.automaticPreference == nil else { return }
-        checker.setAutomaticChecks(UpdateAlerts.askForConsent())
+        guard let checker = controller?.updateChecker else { return }
+        if !suppressUpdateConsentPrompt, NSApp.modalWindow == nil,
+           checker.installedVersion != nil, checker.automaticPreference == nil {
+            checker.setAutomaticChecks(UpdateAlerts.askForConsent())
+        }
+
+        upgradePromptObservation = checker.$availableVersion.combineLatest(checker.$isChecking)
+            .sink { [weak self] _ in
+                // Use the default run-loop mode so the prompt waits for menu tracking
+                // and other modal alerts to finish. Published values emit before storage updates.
+                self?.perform(#selector(ClipDiffApplicationDelegate.promptForUpgrade), with: nil, afterDelay: 0)
+            }
+    }
+
+    @objc private func promptForUpgrade() {
+        guard NSApp.modalWindow == nil, let checker = controller?.updateChecker,
+              let version = checker.upgradeToOffer else { return }
+        UpdateAlerts.showUpgrade(version, checker: checker)
     }
 
     func applicationWillTerminate(_ notification: Notification) {
@@ -89,7 +106,7 @@ final class ClipDiffApplicationDelegate: NSObject, NSApplicationDelegate {
             return
         }
         controller.loginItemManager.suppressAutomaticPrompt()
-        suppressUpdatePrompt = true
+        suppressUpdateConsentPrompt = true
         if urls.count == 1, urls[0].scheme?.lowercased() == FinderComparisonRequest.scheme {
             guard let request = FinderComparisonRequest(url: urls[0]) else {
                 ClipDiffLog.app.error("Received an invalid Finder comparison request")

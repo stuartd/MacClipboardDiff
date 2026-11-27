@@ -76,6 +76,69 @@ final class UpdateCheckerTests: XCTestCase {
     }
 
     @MainActor
+    func testLaterOffersTheCachedUpgradeNextLaunch() async throws {
+        let defaults = MemoryDefaults()
+        let checker = UpdateChecker(releaseTag: "v0.9.1120", defaults: defaults) {
+            ReleaseVersion(tag: "v0.9.1121")!
+        }
+
+        _ = await checker.check(manual: true)
+        let version = try XCTUnwrap(checker.upgradeToOffer)
+        checker.markUpgradeOffered(version)
+        checker.deferUpgrade(version)
+        XCTAssertNil(checker.upgradeToOffer)
+
+        _ = await checker.check(manual: true)
+        XCTAssertNil(checker.upgradeToOffer)
+        XCTAssertEqual(checker.availableVersion?.tag, version.tag)
+
+        let relaunched = UpdateChecker(releaseTag: "v0.9.1120", defaults: defaults)
+        XCTAssertEqual(relaunched.upgradeToOffer?.tag, version.tag)
+    }
+
+    @MainActor
+    func testSkippingAnUpgradeKeepsItInTheMenuAndAllowsNewerPrompts() async throws {
+        let defaults = MemoryDefaults()
+        let checker = UpdateChecker(releaseTag: "v0.9.1120", defaults: defaults) {
+            ReleaseVersion(tag: "v0.9.1121")!
+        }
+
+        _ = await checker.check(manual: true)
+        let version = try XCTUnwrap(checker.upgradeToOffer)
+        checker.markUpgradeOffered(version)
+        checker.skipUpgrade(version)
+
+        let relaunched = UpdateChecker(releaseTag: "v0.9.1120", defaults: defaults) {
+            ReleaseVersion(tag: "v0.9.1122")!
+        }
+        XCTAssertNil(relaunched.upgradeToOffer)
+        XCTAssertEqual(relaunched.availableVersion?.tag, version.tag)
+
+        _ = await relaunched.check(manual: true)
+        XCTAssertEqual(relaunched.upgradeToOffer?.tag, "v0.9.1122")
+    }
+
+    @MainActor
+    func testLaterRestoresRemindersForAPreviouslySkippedUpgrade() async throws {
+        let defaults = MemoryDefaults()
+        let checker = UpdateChecker(releaseTag: "v0.9.1120", defaults: defaults) {
+            ReleaseVersion(tag: "v0.9.1121")!
+        }
+        _ = await checker.check(manual: true)
+        let version = try XCTUnwrap(checker.availableVersion)
+        checker.skipUpgrade(version)
+
+        let relaunched = UpdateChecker(releaseTag: "v0.9.1120", defaults: defaults)
+        XCTAssertNil(relaunched.upgradeToOffer)
+        relaunched.markUpgradeOffered(version)
+        relaunched.deferUpgrade(version)
+        XCTAssertNil(relaunched.upgradeToOffer)
+
+        let nextLaunch = UpdateChecker(releaseTag: "v0.9.1120", defaults: defaults)
+        XCTAssertEqual(nextLaunch.upgradeToOffer?.tag, version.tag)
+    }
+
+    @MainActor
     func testFailedAutomaticAttemptIsThrottledAcrossRestartsButManualCheckCanRetry() async {
         let defaults = MemoryDefaults()
         defaults.set(true, forKey: "UpdateChecks.Automatic")
